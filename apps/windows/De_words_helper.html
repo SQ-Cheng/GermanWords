@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>德语单词记忆助手</title>
+    <title>德语单词记忆助手 4.0.1</title>
     <!-- 4.0：不再依赖外部 CDN，Excel 读取已内置，断网也能用 -->
     <style>
       :root {
@@ -508,7 +508,7 @@
   <body>
     <div class="sidebar">
       <h2>🇩🇪 德语单词记忆助手</h2>
-      <div class="sidebar-desc">v4.0 · 断网也能用</div>
+      <div class="sidebar-desc">v4.0.1 · 断网也能用</div>
 
       <div class="btn-group">
         <label for="folderInput" class="upload-btn" title="选择整个文件夹">
@@ -987,7 +987,6 @@
         }
       }
 
-      // === 词表列名 -> 列号（不再写死列序，老师加一列也不会坏） ===
       // === 核心逻辑 ===
       function handleFiles(files) {
         const all = Array.from(files);

@@ -2,6 +2,8 @@
 
 Android 与 Windows 离线版共用一个仓库，两个客户端分别维护界面与平台功能。
 
+当前源码版本：**Android 4.0.1**（versionCode 3）、**Windows 4.0.1**。已有 Releases 安装包仍以各发布条目的版本号为准。
+
 目前开发人员：SQ-Cheng (Android), freshfish6666 (Windows).
 
 致谢：王老师，以及开发之前版本的同学。
@@ -18,7 +20,7 @@ Android 与 Windows 离线版共用一个仓库，两个客户端分别维护界
 | `output/pdf/` | Android 使用说明 |
 | `artifacts/verification.md` | 历史设备验证记录 |
 
-Android 开发与使用见 [Android 说明](apps/android/README.md)。直接打开 Windows 源码页面时，点击「导入文件夹」，选择 `shared/words/`。
+两端均内置 8 份词表、460 个词条及对应录音，安装或解压后可离线学习。Android 开发与使用见 [Android 说明](apps/android/README.md)，更新记录见 [CHANGELOG](apps/android/CHANGELOG.md)。Windows 版用新版 Edge 或 Chrome 打开；直接打开源码页面时，点击「导入文件夹」，选择 `shared/words/`。
 
 Windows 离线发布包：
 
@@ -26,7 +28,7 @@ Windows 离线发布包：
 python tools/build-windows.py
 ```
 
-将生成的 `output/windows/` 整个文件夹交给用户。双击其中的 HTML，导入同目录的 `words/` 即可使用；用户无需 Python。生成目录不入库，每次构建会重新生成。
+将生成的 `output/windows/` 整个文件夹交给用户，保留 HTML、`parser.js` 与 `words/`。双击其中的 HTML，导入同目录的 `words/` 即可使用；用户无需 Python。生成目录不入库，每次构建会重新生成。Windows 本轮保留原有学习界面与功能，不增加 Android 的备份和位置恢复功能。
 
 从仓库根目录验证公共解析器和 Android 学习引擎（Node.js 22 或更高版本）：
 
@@ -41,6 +43,8 @@ Android 构建：
 cd apps/android
 .\gradlew.bat assembleDebug lintDebug
 ```
+
+需要 JDK 17+ 与 Android SDK 35；用 Android Studio 打开 `apps/android/` 配置 SDK，或通过 `ANDROID_HOME` 指定 SDK。`local.properties` 不入库。调试 APK 位于 `apps/android/app/build/outputs/apk/debug/app-debug.apk`；本轮只更新源码，不自动创建 Releases。
 
 Gradle 自动打包 `shared/parser.js` 和 `shared/words/` 并生成资源索引，更新公共文件无需手动复制。Android 生成资源位于 `apps/android/app/build/generated/sharedAssets/`。
 

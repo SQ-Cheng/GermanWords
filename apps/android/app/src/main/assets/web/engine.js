@@ -318,7 +318,6 @@
         }
       }
 
-      // === 词表列名 -> 列号（不再写死列序，老师加一列也不会坏） ===
       // === 核心逻辑 ===
       function handleFiles(files) {
         const all = Array.from(files);
