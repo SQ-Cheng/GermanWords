@@ -1,6 +1,9 @@
 * text=auto
 *.js text eol=lf
 *.mjs text eol=lf
+*.cjs text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
 *.gradle text eol=lf
 *.css text eol=lf
 *.html text eol=lf

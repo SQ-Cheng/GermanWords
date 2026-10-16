@@ -539,16 +539,6 @@
         return "bg-other";
       }
 
-      // 翻页按钮的可用状态
-      function updateNav() {
-        const prev = document.getElementById("btnPrevCard");
-        const next = document.getElementById("btnNextCard");
-        if (!prev || !next) return;
-        prev.disabled = currentIndex <= 0;
-        next.disabled =
-          displayWords.length === 0 || currentIndex >= displayWords.length - 1;
-      }
-
       function updateUI() {
         const markedCount = currentFileWords.filter((w) => w.marked).length;
         document.getElementById(
@@ -578,7 +568,6 @@
           listCont.style.display = "flex";
           renderList();
         }
-        updateNav();
         paintStudy();
         saveStudy();
       }
@@ -610,6 +599,11 @@
         const word = displayWords[currentIndex];
         if (!word) return;
         const cardEl = document.getElementById("cardView");
+        const wordKey = currentFileName + "#" + word.id;
+        if (cardEl.dataset.word !== wordKey) {
+          document.querySelector('.card-body').scrollTop = 0;
+          cardEl.dataset.word = wordKey;
+        }
 
         // 1. 设置背景色 (核心修改逻辑)
         // 如果不是普通模式，且答案未揭晓，强制使用白色背景 (bg-other)
@@ -735,7 +729,6 @@
         document.getElementById("cardIndexInfo").innerText = `${
           currentIndex + 1
         } / ${displayWords.length}`;
-        updateNav();
       }
 
       function renderList() {

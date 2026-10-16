@@ -77,8 +77,8 @@
     assert(document.getElementById('libraryButton').parentElement.className==='lesson-heading','menu in book row');
     openLibrary();assert(handleAndroidBack()===true && !libraryOpen,'back closes drawer');
     assert(document.documentElement.scrollWidth<=window.innerWidth+1,'no horizontal overflow');
-    const next=document.getElementById('btnNextCard').getBoundingClientRect();
-    assert(next.width>=44 && next.height>=44 && next.right<=innerWidth && next.bottom<=innerHeight,'visible touch controls');
+    const footer=document.querySelector('.study-footer').getBoundingClientRect();
+    assert(footer.bottom<=innerHeight+1 && document.body.scrollHeight<=innerHeight+1,'single-screen page and footer');
     const example=parseSheets([{name:'Safe',rows:[['德语','中文','词性','例句'],['<b>literal</b>','字面','动词','A & B']]}]).words[0];
     processData([example]);
     assert(document.getElementById('cardGerman').textContent==='<b>literal</b>','literal imported text');

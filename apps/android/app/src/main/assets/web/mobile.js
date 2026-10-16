@@ -1,4 +1,12 @@
 'use strict';
+document.addEventListener('themechange', event => {
+  if (window.Android) Android.setDarkMode(event.detail);
+});
+function syncSystemTheme() {
+  if (window.Android) AppTheme.setSystemDark(Android.isSystemDark());
+}
+syncSystemTheme();
+
 const PREF_KEY = 'german_android_preferences_v1';
 let preferences;
 try { preferences = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); } catch (_) { preferences = {}; }
@@ -72,11 +80,14 @@ function saveStudy() {
   catch (_) { notify('手机存储不足，无法保存学习进度', 'error'); }
 }
 function paintStudy() {
-  const title = currentFileName ? currentFileName.replace(/_单词汇总\.xlsx$/i, ' · 单元词汇').replace(/\.xlsx$/i, '') : '选择一份词表';
+  const title = currentFileName ? currentFileName.replace(/_单词汇总\.xlsx$/i, '').replace(/\.xlsx$/i, '') : '选择一份词表';
   document.getElementById('lessonTitle').textContent = title;
   document.getElementById('lessonCount').textContent = currentFileWords.length + ' 词';
-  document.getElementById('studyProgress').style.width = (displayWords.length ? (currentIndex + 1) / displayWords.length * 100 : 0) + '%';
-  document.querySelector('.progress-track').setAttribute('aria-valuenow', String(displayWords.length ? Math.round((currentIndex + 1) / displayWords.length * 100) : 0));
+  const progress = document.getElementById('studyProgress');
+  progress.max = Math.max(0, displayWords.length - 1);
+  progress.value = currentIndex;
+  progress.disabled = displayWords.length <= 1;
+  paintProgress(currentIndex);
   const star = document.querySelector('.star-mark');
   const word = displayWords[currentIndex];
   star.textContent = word && word.marked ? '★' : '☆';
@@ -89,6 +100,31 @@ function paintStudy() {
   shuffle.setAttribute('aria-pressed', String(isShuffled));
   shuffle.disabled = !currentFileWords.length;
   document.getElementById('btnFilter').setAttribute('aria-pressed', String(isFilterActive));
+}
+function paintProgress(index) {
+  const count = displayWords.length;
+  const position = count ? index + 1 : 0;
+  document.getElementById('cardIndexInfo').textContent = position + ' / ' + count;
+  const progress = document.getElementById('studyProgress');
+  progress.style.setProperty('--progress', (count > 1 ? index / (count - 1) * 100 : 0) + '%');
+  progress.setAttribute('aria-valuetext', position + ' / ' + count);
+}
+function previewProgress(value) {
+  pauseStudyAudio();
+  paintProgress(Number(value));
+}
+function seekProgress(value) {
+  const index = Number(value);
+  if (!Number.isInteger(index) || !displayWords.length) return;
+  currentIndex = Math.max(0, Math.min(displayWords.length - 1, index));
+  isRevealed = false;
+  lastAutoKey = null;
+  pauseStudyAudio();
+  document.querySelector('.card-body').scrollTop = 0;
+  updateUI();
+  if (currentView === 'list') {
+    document.querySelectorAll('#wordTable tbody tr')[currentIndex].scrollIntoView({block:'nearest'});
+  }
 }
 // Touch gestures ignore taps on controls and vertical scrolling inside long cards.
 let touchStart = null;
