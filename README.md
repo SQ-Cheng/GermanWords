@@ -2,6 +2,12 @@
 
 Android 与 Windows 离线版共用一个仓库，两个客户端分别维护界面与平台功能。
 
+目前开发人员：SQ-Cheng (Android), freshfish6666 (Windows).
+
+致谢：王老师，以及开发之前版本的同学。
+
+[Android 安装包](https://github.com/SQ-Cheng/german-words-android/releases/latest) · [Android PDF 使用说明](output/pdf/GermanWordsAndroid-User-Guide.pdf) · [问题与建议](https://github.com/SQ-Cheng/german-words-android/issues)
+
 | 目录 | 内容 |
 | --- | --- |
 | `apps/android/` | Android Studio / Gradle 项目，Java 外壳与 WebView 界面 |
