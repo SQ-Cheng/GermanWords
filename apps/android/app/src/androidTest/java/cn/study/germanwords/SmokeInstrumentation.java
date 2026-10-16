@@ -74,6 +74,8 @@ public class SmokeInstrumentation extends Instrumentation {
             evaluate("currentIndex=0;updateUI()");
             swipeCard();
             if(!"true".equals(evaluate("currentIndex===1")))throw new IOException("Physical card swipe did not advance");
+            dragProgress();
+            if(!"true".equals(evaluate("currentIndex>=displayWords.length*.7 && currentIndex<=displayWords.length*.9 && preferences.books[currentFileName].word===displayWords[currentIndex].id")))throw new IOException("Physical progress drag did not navigate and persist");
             for(float scale:new float[]{1f,1.3f,1.5f,2f}) {
                 runOnMainSync(() -> activity.applyTextScale(scale));
                 SystemClock.sleep(300);
@@ -190,6 +192,16 @@ public class SmokeInstrumentation extends Instrumentation {
         float start=location[0]+activity.web.getWidth()*.8f;
         float end=location[0]+activity.web.getWidth()*.2f;
         float y=location[1]+activity.web.getHeight()*.6f;
+        drag(start,end,y);
+    }
+    private void dragProgress() throws Exception {
+        int[] location=new int[2];
+        runOnMainSync(() -> activity.web.getLocationOnScreen(location));
+        float scale=activity.web.getWidth()/Float.parseFloat(evaluate("innerWidth"));
+        float y=location[1]+Float.parseFloat(evaluate("(()=>{const r=document.getElementById('studyProgress').getBoundingClientRect();return r.top+r.height/2})()"))*scale;
+        drag(location[0]+activity.web.getWidth()*.2f,location[0]+activity.web.getWidth()*.8f,y);
+    }
+    private void drag(float start,float end,float y) throws Exception {
         long down=SystemClock.uptimeMillis();
         for(int i=0;i<=12;i++) {
             int action=i==0?android.view.MotionEvent.ACTION_DOWN:i==12?android.view.MotionEvent.ACTION_UP:android.view.MotionEvent.ACTION_MOVE;

@@ -8,13 +8,13 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const web=path.join(root,'apps/android/app/src/main/assets/web');
 const storage=new Map();
 class Element {
-  constructor(){this.style={};this.dataset={};this.attributes={};this.children=[];this.textContent='';this.innerText='';this.className='';this.value='normal';this.scrollTop=0;const classes=new Set();this.classList={add:c=>classes.add(c),remove:c=>classes.delete(c),contains:c=>classes.has(c),toggle:(c,on)=>on?classes.add(c):classes.delete(c)};}
-  addEventListener(){} appendChild(el){this.children.push(el);return el;} remove(){} setAttribute(k,v){this.attributes[k]=v;}
+  constructor(){this.style={setProperty:(key,value)=>{this.style[key]=value;}};this.dataset={};this.attributes={};this.children=[];this.textContent='';this.innerText='';this.className='';this.value='normal';this.scrollTop=0;const classes=new Set();this.classList={add:c=>classes.add(c),remove:c=>classes.delete(c),contains:c=>classes.has(c),toggle:(c,on)=>on?classes.add(c):classes.delete(c)};}
+  addEventListener(){} appendChild(el){this.children.push(el);return el;} remove(){} setAttribute(k,v){this.attributes[k]=v;} scrollIntoView(){this.scrolled=true;}
   set innerHTML(value){this.children=[];this.html=value;} get innerHTML(){return this.html;}
 }
 const elements=new Map();
 const get=id=>{if(!elements.has(id))elements.set(id,new Element());return elements.get(id);};
-const document={getElementById:get,addEventListener(){},createElement:()=>new Element(),createTextNode:text=>({textContent:text}),querySelector:selector=>get(selector),querySelectorAll:selector=>selector==='.file-item'?get('fileList').children:[]};
+const document={getElementById:get,addEventListener(){},createElement:()=>new Element(),createTextNode:text=>({textContent:text}),querySelector:selector=>get(selector),querySelectorAll:selector=>selector==='.file-item'?get('fileList').children:selector==='#wordTable tbody tr'?get('#wordTable tbody').children:[]};
 const localStorage={getItem:key=>storage.get(key)||null,setItem:(key,v)=>storage.set(key,v),removeItem:key=>storage.delete(key)};
 let timerId=0;const timers=new Map();
 const context=vm.createContext({console,TextDecoder,Uint8Array,DataView,Blob,Response,DecompressionStream,Map,Set,URL,Number,document,
@@ -45,6 +45,7 @@ vm.runInContext('toggleCurrentMark();toggleFilter()',context);
 assert.equal(vm.runInContext('displayWords.length',context),1);
 vm.runInContext('toggleCurrentMark();toggleReveal()',context);
 assert.equal(vm.runInContext('displayWords.length',context),0);
+assert.equal(get('studyProgress').disabled,true);
 vm.runInContext('toggleFilter();nextCard()',context);
 assert.equal(vm.runInContext('currentIndex',context),1);
 vm.runInContext('prevCard();document.getElementById("modeSelect").value="test-zh";changeMode()',context);
@@ -68,6 +69,19 @@ vm.runInContext('shuffleCurrentList()',context);
 assert.equal(vm.runInContext('isShuffled',context),false);
 assert.equal(vm.runInContext('displayWords.map(w=>w.id).join("|")===currentFileWords.map(w=>w.id).join("|")',context),true);
 assert.equal(get('btnShuffle').textContent,'乱序');
+vm.runInContext('seekProgress(10);previewProgress(25)',context);
+assert.equal(vm.runInContext('currentIndex',context),10,'drag previews without changing the word');
+assert.equal(get('cardIndexInfo').textContent,'26 / 65');
+assert.equal(vm.runInContext('autoPlayTimer',context),null,'drag cancels queued audio');
+vm.runInContext('seekProgress(25)',context);
+assert.equal(vm.runInContext('preferences.books[currentFileName].word===displayWords[25].id',context),true);
+assert.equal(get('studyProgress').max,64);
+vm.runInContext('isRevealed=true;seekProgress(500)',context);
+assert.equal(vm.runInContext('currentIndex',context),64);
+assert.equal(vm.runInContext('isRevealed',context),false);
+vm.runInContext('seekProgress(-10);switchView("list");seekProgress(12)',context);
+assert.equal(get('#wordTable tbody').children[12].scrolled,true);
+vm.runInContext('switchView("card");seekProgress(0)',context);
 vm.runInContext('switchView("list"); document.getElementById("modeSelect").value="test-zh";changeMode()',context);
 let row=get('#wordTable tbody').children[0];
 assert.equal(row.children[0].textContent,'');
