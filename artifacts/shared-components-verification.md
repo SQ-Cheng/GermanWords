@@ -21,6 +21,7 @@
 - 调试版、未签名 Release、测试 APK 的干净构建及 lint 通过；调试版与 Release 均完整包含共享解析器和 467 个原始资源。
 - 将调试 APK 中的实际页面与资源放入隔离 HTTP 服务，在 Edge 中执行现有 `smoke.js`：浏览器解压路径和模拟 Android 桥接路径均通过。桥接模拟时禁用 `DecompressionStream`，验证原生解压入口独立可用；另验证备份、恢复、重新加载后的进度与星标、原生播放调用。
 - 增量构建验证：临时修改公共解析器、增加后删除资源，Gradle 与 Windows 构建均正确更新输出，清理已删除资源，索引从 467 项变为 468 项后正确恢复。所有临时修改均已还原。
+- 从已提交代码建立独立干净检出，不复制 `local.properties` 或旧构建文件，仅设置 JDK 与 `ANDROID_HOME`：两项 Node 测试、Windows 打包、Android 调试版与测试 APK 构建、lint 均通过；干净检出的 APK 也逐字节核对全部公共资源。Lint 为 0 错误、3 个既有警告（OldTargetApi、UnusedAttribute、SetJavaScriptEnabled）。
 - Android APK 元数据确认为 `versionName=4.0.1`、`versionCode=3`；Windows 页面标题、可见版本和 README 同步更新到 4.0.1。
 - 已保留远端主分支新增的开发者、致谢信息，并恢复仓库首页的安装包与使用说明入口。旧版验证记录和 Releases 保留各自原版本，不宣称已发布 4.0.1 安装包。
 
