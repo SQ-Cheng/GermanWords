@@ -45,7 +45,7 @@ node ..\..\tools\test-engine.mjs
 
 APK：`app/build/outputs/apk/debug/app-debug.apk`。这是使用 Android 默认开发签名的可安装测试版本；上架或正式发布需要独立发布签名。
 
-`engine.js`、`index.html`、`mobile.css`、`mobile.js` 直接维护 Android 版本，已移除容易覆盖修改的 HTML 字符串替换生成器。更新内置 `words` 文件后执行 `python ../../tools/index-assets.py` 重建资源索引。
+`engine.js`、`index.html`、`mobile.css`、`mobile.js` 直接维护 Android 版本，已移除容易覆盖修改的 HTML 字符串替换生成器。内置词库统一维护在 `../../shared/words/`，Gradle 构建时自动打包并生成资源索引。Windows 离线包从同一目录生成。
 
 仓库根目录统一使用 Git 管理；`v1.0.0` 保留初始实现，`v1.0.1` 包含本次修复。构建目录、APK、设备截图、日志和本机 SDK 路径不入库。
 

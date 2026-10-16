@@ -26,7 +26,8 @@ const context=vm.createContext({console,TextDecoder,Uint8Array,DataView,Blob,Res
 vm.runInContext(fs.readFileSync(path.join(web,'engine.js'),'utf8'),context);
 vm.runInContext(fs.readFileSync(path.join(web,'mobile.js'),'utf8').replace(/reloadLibrary\(\);\s*$/, ''),context);
 vm.runInContext('autoPlayEnabled=false;',context);
-const files=JSON.parse(fs.readFileSync(path.join(web,'manifest.json'),'utf8')).map(item=>({name:item.name,root:'built-in',webkitRelativePath:item.path,url:item.url,arrayBuffer:async()=>{const b=fs.readFileSync(path.join(web,item.path));return b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength);}}));
+const words=path.join(root,'shared/words');
+const files=fs.readdirSync(words,{recursive:true}).filter(name=>fs.statSync(path.join(words,name)).isFile()).map(name=>({name:path.basename(name),root:'built-in',webkitRelativePath:'words/'+name.replaceAll('\\','/'),url:'/assets/web/words/'+name.replaceAll('\\','/'),arrayBuffer:async()=>{const b=fs.readFileSync(path.join(words,name));return b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength);}}));
 context.files=files;
 vm.runInContext('handleFiles(files)',context);
 let total=0, audio=0;

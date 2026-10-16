@@ -1,4 +1,18 @@
 plugins { id 'com.android.application' }
+
+def sharedWords = rootProject.file('../../shared/words')
+def prepareSharedAssets = tasks.register('prepareSharedAssets', Sync) {
+    from(sharedWords) { into 'web/words' }
+    into layout.buildDirectory.dir('generated/sharedAssets')
+    doLast {
+        def entries = fileTree(sharedWords).files.sort { a, b -> a.path <=> b.path }.collect { file ->
+            def path = 'words/' + sharedWords.toPath().relativize(file.toPath()).toString().replace('\\', '/')
+            [name: file.name, path: path, url: '/assets/web/' + path]
+        }
+        new File(destinationDir, 'web/manifest.json').setText(groovy.json.JsonOutput.toJson(entries), 'UTF-8')
+    }
+}
+
 android {
     namespace 'cn.study.germanwords'
     compileSdk 35
@@ -13,4 +27,7 @@ android {
     compileOptions { sourceCompatibility JavaVersion.VERSION_11; targetCompatibility JavaVersion.VERSION_11 }
     buildTypes { release { minifyEnabled false } }
     lint { abortOnError true }
+    sourceSets.main.assets.srcDir(prepareSharedAssets)
 }
+
+tasks.named('preBuild') { dependsOn prepareSharedAssets }
