@@ -2,11 +2,11 @@
 
 本仓库的 Android Studio 项目，来自「德语单词记忆助手 4.0」。Windows 离线版位于 `../windows/`。
 
-[下载安装包](https://github.com/SQ-Cheng/GermanWords/releases/latest) · [PDF 使用说明](../../output/pdf/GermanWordsAndroid-User-Guide.pdf) · [图片使用说明](../../output/pdf/GermanWordsAndroid-User-Guide.png) · [问题与建议](https://github.com/SQ-Cheng/GermanWords/issues)
+[下载安装包](https://github.com/SQ-Cheng/GermanWords/releases/tag/v4.0.2-beta.1) · [PDF 使用说明](../../output/pdf/GermanWordsAndroid-User-Guide.pdf) · [图片使用说明](../../output/pdf/GermanWordsAndroid-User-Guide.png) · [问题与建议](https://github.com/SQ-Cheng/GermanWords/issues)
 
 ## 使用
 
-应用名称：**德语单词**，当前版本 **4.0.1**（versionCode 3）。首次打开直接进入 E1；课程标题右侧的菜单可选择 E1–E7 或「虚词大盘点」。内置 8 份 Excel、460 个词条及全部对应录音，安装后无需联网。
+应用名称：**德语单词**，当前版本 **4.0.2-beta.1**（versionCode 4，Beta 预发布）。首次打开直接进入 E1；课程标题右侧的菜单可选择 E1–E7 或「虚词大盘点」。内置 8 份 Excel、460 个词条及全部对应录音，安装后无需联网。
 
 卡片通过左右滑动或外接键盘 ← / → 翻页；底部进度条可以拖动，拖动时预览位置，松手后跳转并保存进度。乱序、星标筛选和列表模式下均按当前展示顺序定位；空列表或仅一个词时禁用滑块。主页面保持一屏，超长词条或例句只在卡片内部滚动。学习模式名称与原版一致，星标、发音和列表操作中的圆形按钮在大字号下保持等宽等高。
 
@@ -47,7 +47,7 @@ $env:JAVA_HOME = 'E:\Android Studio\jbr'
 node ..\..\tests\test-engine.mjs
 ```
 
-APK：`app/build/outputs/apk/debug/app-debug.apk`。这是使用 Android 默认开发签名的可安装测试版本；上架或正式发布需要独立发布签名。
+APK：`app/build/outputs/apk/debug/app-debug.apk`。这是使用 Android 默认开发签名的可安装测试版本。GitHub beta APK 由 `assembleRelease` 构建后以同一开发证书签名，关闭调试且不包含测试组件，可覆盖历史测试包；上架或正式发布需要独立发布签名。
 
 `engine.js`、`index.html`、`mobile.css`、`mobile.js` 直接维护 Android 界面与学习逻辑。`../../shared/` 中只有公共解析器、主题脚本与样式、词库；Gradle 构建时自动打包并生成资源索引。Windows 离线包使用相同的公共文件。主题脚本不直接调用 Android，由 `mobile.js` 连接原生系统主题与系统栏。
 
