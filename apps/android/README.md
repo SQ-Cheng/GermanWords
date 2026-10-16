@@ -8,7 +8,9 @@
 
 应用名称：**德语单词**，当前版本 **4.0.1**（versionCode 3）。首次打开直接进入 E1；课程标题右侧的菜单可选择 E1–E7 或「虚词大盘点」。内置 8 份 Excel、460 个词条及全部对应录音，安装后无需联网。
 
-卡片通过左右滑动或外接键盘 ← / → 翻页；底部进度条可以拖动，拖动时预览位置，松手后跳转并保存进度。乱序、星标筛选和列表模式下均按当前展示顺序定位；空列表或仅一个词时禁用滑块。主页面保持一屏，超长导入内容只在卡片内部滚动。学习模式名称与原版一致，星标、发音和列表操作中的圆形按钮在大字号下保持等宽等高。
+卡片通过左右滑动或外接键盘 ← / → 翻页；底部进度条可以拖动，拖动时预览位置，松手后跳转并保存进度。乱序、星标筛选和列表模式下均按当前展示顺序定位；空列表或仅一个词时禁用滑块。主页面保持一屏，超长词条或例句只在卡片内部滚动。学习模式名称与原版一致，星标、发音和列表操作中的圆形按钮在大字号下保持等宽等高。
+
+词库侧栏中的「主题」默认跟随系统，可选择昼间或夜间；设置自动保存在本机。Android 状态栏、导航栏同时适配，切回「跟随系统」后会响应系统主题变化。
 
 | 网页版功能 | Android 版本 |
 | --- | --- |
@@ -28,7 +30,7 @@
 
 - 最低 Android 6.0（API 23）；compileSdk / targetSdk 35。
 - 纯 Java Android 宿主 + 本地 HTML/CSS/JavaScript 学习引擎，不含 CPU 架构专属原生库，适用于 ARM、ARM64 和 x86 设备。
-- 支持手机、横屏、平板、刘海和系统栏边距。跟随系统字体大小，大字体保持卡片和底部进度在一屏内，超长内容在卡片内部滚动；真机已测试 100%–200% 文本缩放及 320dp 窄屏。建议使用可更新的 Android System WebView；页面布局需要 Chromium 87 及以上，Android 6.0 的原始旧 WebView 应先更新。
+- 支持手机、横屏、平板、刘海和系统栏边距。跟随系统字体大小，大字体保持卡片和底部进度在一屏内，超长词条或例句在卡片内部滚动；真机已测试 100%–200% 文本缩放及 320dp 窄屏。建议使用可更新的 Android System WebView；页面布局需要 Chromium 87 及以上，Android 6.0 的原始旧 WebView 应先更新。
 - 不申请互联网和整个存储空间权限。使用系统文件选择器授权读取；固定 HTTPS 本地域名的资源由应用拦截提供，禁止外部页面、file:// 和内容 URI 浏览。
 - 发音使用本地录音，不要求设备安装德语 TTS。音频格式支持程度取决于设备解码器；内置 MP3 全部完成匹配检查。
 - 原生文件选择器与本地 WebView 资源的做法参考 [Android 文件访问文档](https://developer.android.com/training/data-storage/shared/documents-files) 和 [加载应用内网页内容](https://developer.android.com/develop/ui/views/layout/webapps/load-local-content)。
@@ -47,7 +49,7 @@ node ..\..\tests\test-engine.mjs
 
 APK：`app/build/outputs/apk/debug/app-debug.apk`。这是使用 Android 默认开发签名的可安装测试版本；上架或正式发布需要独立发布签名。
 
-`engine.js`、`index.html`、`mobile.css`、`mobile.js` 直接维护 Android 界面与学习逻辑。公共解析器位于 `../../shared/parser.js`，词库位于 `../../shared/words/`；Gradle 构建时自动打包并生成资源索引。Windows 离线包使用相同的公共文件。
+`engine.js`、`index.html`、`mobile.css`、`mobile.js` 直接维护 Android 界面与学习逻辑。`../../shared/` 中只有公共解析器、主题脚本与样式、词库；Gradle 构建时自动打包并生成资源索引。Windows 离线包使用相同的公共文件。主题脚本不直接调用 Android，由 `mobile.js` 连接原生系统主题与系统栏。
 
 仓库根目录统一使用 Git 管理；历史标签 `v1.0.0`、`v1.0.1` 保留早期 Android 实现；从 4.0.1 起两端统一版本号。构建目录、APK、设备截图、日志和本机 SDK 路径不入库。
 

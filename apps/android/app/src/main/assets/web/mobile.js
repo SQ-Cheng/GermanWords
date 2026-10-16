@@ -1,4 +1,12 @@
 'use strict';
+document.addEventListener('themechange', event => {
+  if (window.Android) Android.setDarkMode(event.detail);
+});
+function syncSystemTheme() {
+  if (window.Android) AppTheme.setSystemDark(Android.isSystemDark());
+}
+syncSystemTheme();
+
 const PREF_KEY = 'german_android_preferences_v1';
 let preferences;
 try { preferences = JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); } catch (_) { preferences = {}; }

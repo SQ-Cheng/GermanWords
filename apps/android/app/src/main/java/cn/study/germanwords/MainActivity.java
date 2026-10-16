@@ -36,6 +36,7 @@ public class MainActivity extends Activity {
     static final String HOST = "appassets.androidplatform.net";
     static final int FOLDER = 101, FILES = 102, BACKUP = 103;
     WebView web;
+    private FrameLayout root;
     private MediaPlayer player;
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private volatile boolean destroyed;
@@ -43,11 +44,10 @@ public class MainActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         web = new WebView(this);
-        web.setBackgroundColor(Color.rgb(246,247,242));
-        FrameLayout root = new FrameLayout(this);
-        root.setBackgroundColor(Color.rgb(246,247,242));
+        root = new FrameLayout(this);
         root.addView(web, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         setContentView(root);
+        applyDarkMode(isSystemDark());
         // Android 15 edge-to-edge: keep every control inside system bar / cutout insets.
         root.setOnApplyWindowInsetsListener((view, insets) -> {
             view.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(),
@@ -101,6 +101,23 @@ public class MainActivity extends Activity {
     @Override public void onConfigurationChanged(Configuration config) {
         super.onConfigurationChanged(config);
         applyTextScale(config.fontScale);
+        web.evaluateJavascript("if(typeof syncSystemTheme==='function')syncSystemTheme()", null);
+    }
+
+    private boolean isSystemDark() {
+        return (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+    }
+    private void applyDarkMode(boolean dark) {
+        int color=dark?Color.rgb(21,29,25):Color.rgb(246,247,242);
+        root.setBackgroundColor(color);
+        web.setBackgroundColor(color);
+        getWindow().setStatusBarColor(color);
+        getWindow().setNavigationBarColor(!dark && android.os.Build.VERSION.SDK_INT<26?Color.rgb(33,61,51):color);
+        android.view.View decor=getWindow().getDecorView();
+        int flags=decor.getSystemUiVisibility();
+        int light=android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+        if(android.os.Build.VERSION.SDK_INT>=26)light|=android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        decor.setSystemUiVisibility(dark?flags & ~light:flags | light);
     }
 
     private boolean isLocal(Uri uri) { return "https".equals(uri.getScheme()) && HOST.equals(uri.getHost()); }
@@ -133,6 +150,8 @@ public class MainActivity extends Activity {
     private void js(String code) { runOnUiThread(() -> { if (!destroyed) web.evaluateJavascript(code, null); }); }
     private void notice(String text, String kind) { js("notify(" + JSONObject.quote(text) + "," + JSONObject.quote(kind) + ")"); }
     public class AndroidBridge {
+        @JavascriptInterface public boolean isSystemDark() { return MainActivity.this.isSystemDark(); }
+        @JavascriptInterface public void setDarkMode(boolean dark) { runOnUiThread(() -> applyDarkMode(dark)); }
         @JavascriptInterface public String manifest() {
             try {
                 JSONArray all;

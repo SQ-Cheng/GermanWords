@@ -7,6 +7,7 @@
 ```powershell
 node tests/test-parser.mjs
 node tests/test-engine.mjs
+node tests/test-theme.mjs
 ```
 
 真机测试需要 JDK 17+、Android SDK 35、Python 3 和已授权 USB 调试的设备。允许手机的 USB 安装提示，设置 `ANDROID_HOME` 或将 `adb` 加入 PATH：
@@ -19,3 +20,13 @@ python tests/android/run-device.py DEVICE_SERIAL
 ```
 
 只有一台设备时可以省略序列号。脚本安装主 APK 与独立测试 APK，验证实际 WebView、原生音频和文件导入。字体测试调用应用自身的缩放路径，不修改手机全局字号；测试还原学习设置和导入目录，并将截图从应用临时缓存取回 `artifacts/`。测试后可执行 `adb uninstall cn.study.germanwords.test` 移除测试 APK。
+
+可选的 Windows 浏览器回归需要本机安装 Edge，并安装本目录锁定的开发依赖：
+
+```powershell
+python tools/build-windows.py
+pnpm --dir tests install --frozen-lockfile
+pnpm --dir tests test:browser
+```
+
+`browser.cjs` 检查源码页面和离线发布包的主题跟随、手动覆盖、重载保存、词库导入与学习交互；无需修改生产代码或启动外部服务。真机测试会短暂覆盖学习状态和主题，然后还原；触摸测试期间应保持手机解锁并让应用留在前台。

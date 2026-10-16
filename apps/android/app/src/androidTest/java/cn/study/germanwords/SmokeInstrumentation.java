@@ -37,6 +37,7 @@ public class SmokeInstrumentation extends Instrumentation {
         Set<String> initialSessions=new HashSet<>();
         int resultCode=Activity.RESULT_CANCELED;
         String oldPreferences=null;
+        String oldTheme=null;
         try {
             Intent intent=new Intent(getTargetContext(), MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             activity=(MainActivity)startActivitySync(intent);
@@ -47,6 +48,7 @@ public class SmokeInstrumentation extends Instrumentation {
                 SystemClock.sleep(250);
             }
             if(!loaded) throw new IOException("Initial library did not load");
+            oldTheme=evaluate("localStorage.getItem('german_theme_v1')");
             AtomicReference<Boolean> focused=new AtomicReference<>(false);
             for(int i=0;i<80;i++) {
                 runOnMainSync(() -> {activity.web.requestFocus();focused.set(activity.hasWindowFocus());});
@@ -107,6 +109,20 @@ public class SmokeInstrumentation extends Instrumentation {
             }
             runOnMainSync(() -> activity.web.setLayoutParams(new android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.MATCH_PARENT,android.widget.FrameLayout.LayoutParams.MATCH_PARENT)));
             runOnMainSync(() -> activity.applyTextScale(activity.getResources().getConfiguration().fontScale));
+            evaluate("AppTheme.setMode('light');AppTheme.setSystemDark(true)");
+            if(!"true".equals(evaluate("document.documentElement.dataset.theme==='light' && document.getElementById('themeSelect').value==='light'")))throw new IOException("Manual light theme must override the system");
+            evaluate("AppTheme.setMode('dark');AppTheme.setSystemDark(false)");
+            if(!"true".equals(evaluate("document.documentElement.dataset.theme==='dark' && localStorage.getItem('german_theme_v1')==='dark'")))throw new IOException("Manual dark theme must persist and override the system");
+            AtomicReference<Integer> barFlags=new AtomicReference<>(0);
+            runOnMainSync(() -> barFlags.set(activity.getWindow().getDecorView().getSystemUiVisibility()));
+            if((barFlags.get() & android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR)!=0)throw new IOException("Dark theme must update native system bar icons");
+            screenshot("qa-theme-dark.png");
+            evaluate("AppTheme.setMode('auto');AppTheme.setSystemDark(true)");
+            if(!"true".equals(evaluate("document.documentElement.dataset.theme==='dark'")))throw new IOException("Auto theme must follow dark system");
+            evaluate("AppTheme.setSystemDark(false)");
+            if(!"true".equals(evaluate("document.documentElement.dataset.theme==='light'")))throw new IOException("Auto theme must follow light system");
+            runOnMainSync(() -> activity.onConfigurationChanged(activity.getResources().getConfiguration()));
+            if(!"true".equals(evaluate("document.documentElement.dataset.theme===(Android.isSystemDark()?'dark':'light')")))throw new IOException("Configuration changes must resync the actual Android theme");
             // Real native MediaPlayer must prepare and play a packaged recording.
             evaluate("pauseStudyAudio(); Android.play(audioSource(displayWords[0]).url); true");
             Field field=MainActivity.class.getDeclaredField("player");field.setAccessible(true);
@@ -148,11 +164,14 @@ public class SmokeInstrumentation extends Instrumentation {
             if(!"true".equals(evaluate("innerWidth>innerHeight && document.documentElement.scrollWidth<=innerWidth+1 && document.querySelector('.study-footer').getBoundingClientRect().bottom<=innerHeight+1")))throw new IOException("Landscape layout");
             runOnMainSync(() -> activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED));
             android.util.Log.d("GermanWordsTest","Landscape verified");
-            results.putString("stream", "\n"+result+"\nPASS: physical card swipe, single-screen card/footer at 100/130/150/200% text zoom, 320dp layout, self-test lists, native packaged/imported audio, recursive SAF import, single XLSX import and landscape.\n");
+            results.putString("stream", "\n"+result+"\nPASS: physical card swipe and progress drag, single-screen card/footer and circular controls at 100/130/150/200%, 320dp layout, auto/light/dark themes and native system bars, self-test lists, native audio, SAF import and landscape.\n");
             resultCode=Activity.RESULT_OK;
         } catch(Exception e) {
             results.putString("stream", "\nFAIL: "+e+"\n");
         } finally {
+            if(activity!=null && oldTheme!=null)try {
+                evaluate("AppTheme.setMode("+("null".equals(oldTheme)?"'auto'":oldTheme)+");"+("null".equals(oldTheme)?"localStorage.removeItem('german_theme_v1')":"localStorage.setItem('german_theme_v1',"+oldTheme+")")+";syncSystemTheme()");
+            }catch(Exception ignored){}
             if(activity!=null && manifest!=null) {
                 try {
                     if(oldManifest==null)manifest.delete();else try(FileOutputStream out=new FileOutputStream(manifest)){out.write(oldManifest);}
@@ -177,6 +196,7 @@ public class SmokeInstrumentation extends Instrumentation {
         }
     }
     private void screenshot(String name) throws IOException {
+        SystemClock.sleep(250);
         android.graphics.Bitmap bitmap=getUiAutomation().takeScreenshot();
         if(bitmap==null)throw new IOException("Screenshot unavailable");
         File directory=new File(activity.getCacheDir(),"test-screenshots");

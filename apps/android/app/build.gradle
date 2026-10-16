@@ -3,7 +3,7 @@ plugins { id 'com.android.application' }
 def sharedWords = rootProject.file('../../shared/words')
 def prepareSharedAssets = tasks.register('prepareSharedAssets', Sync) {
     from(sharedWords) { into 'web/words' }
-    from(rootProject.file('../../shared/parser.js')) { into 'web' }
+    from(rootProject.file('../../shared')) { include '*.js', '*.css'; into 'web' }
     into layout.buildDirectory.dir('generated/sharedAssets')
     doLast {
         def entries = fileTree(sharedWords).files.sort { a, b -> a.path <=> b.path }.collect { file ->

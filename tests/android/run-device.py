@@ -28,7 +28,7 @@ output=raw.decode('utf-8',errors='replace')
 (root/'artifacts').mkdir(exist_ok=True)
 (root/'artifacts/device-test.log').write_text(output,encoding='utf-8')
 print(output,flush=True)
-for name in ['qa-font-100.png','qa-font-130.png','qa-font-150.png','qa-font-200.png','qa-list-200.png']:
+for name in ['qa-font-100.png','qa-font-130.png','qa-font-150.png','qa-font-200.png','qa-list-200.png','qa-theme-dark.png']:
     result=subprocess.run(adb+['exec-out','run-as','cn.study.germanwords','cat','cache/test-screenshots/'+name],capture_output=True,timeout=10)
     if result.returncode==0:
         (root/'artifacts'/name).write_bytes(result.stdout)

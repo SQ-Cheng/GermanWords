@@ -9,3 +9,4 @@ artifacts/*.png
 artifacts/*.log
 tmp/
 output/windows/
+node_modules/
