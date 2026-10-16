@@ -599,6 +599,11 @@
         const word = displayWords[currentIndex];
         if (!word) return;
         const cardEl = document.getElementById("cardView");
+        const wordKey = currentFileName + "#" + word.id;
+        if (cardEl.dataset.word !== wordKey) {
+          document.querySelector('.card-body').scrollTop = 0;
+          cardEl.dataset.word = wordKey;
+        }
 
         // 1. 设置背景色 (核心修改逻辑)
         // 如果不是普通模式，且答案未揭晓，强制使用白色背景 (bg-other)
