@@ -16,6 +16,16 @@ let libraryOpen = false;
 let importBusy = false;
 audioUnlocked = true;
 
+// Older Android WebViews use the native ZIP inflater instead of DecompressionStream.
+function inflateXlsx(data) {
+  let binary = '';
+  for (let i = 0; i < data.length; i++) binary += String.fromCharCode(data[i]);
+  const decoded = Android.inflate(btoa(binary));
+  if (!decoded) throw new Error('Excel 解压失败，请检查文件是否损坏或过大');
+  const text = atob(decoded);
+  return Uint8Array.from(text, c => c.charCodeAt(0));
+}
+
 function openLibrary() {
   libraryOpen = true;
   document.getElementById('library').classList.add('open');

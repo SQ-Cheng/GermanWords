@@ -1,81 +1,55 @@
-# 德语单词 Android
+# 德语单词记忆助手
 
-独立 Android Studio 项目，来自「德语单词记忆助手 4.0」。原版 HTML 和词库未修改。
+Android 与 Windows 离线版共用 [GermanWords 仓库](https://github.com/SQ-Cheng/GermanWords)，两个客户端分别维护界面与平台功能。项目根文件夹为 `GermanWords/`；Android Studio 仍打开其中的 `apps/android/`。
+
+当前源码版本：**Android 4.0.1**（versionCode 3）、**Windows 4.0.1**。已有 Releases 安装包仍以各发布条目的版本号为准。
 
 目前开发人员：SQ-Cheng (Android), freshfish6666 (Windows).
 
-致谢: 王老师, 以及开发之前版本的同学. 
+致谢：王老师，以及开发之前版本的同学。
 
-[下载安装包](https://github.com/SQ-Cheng/german-words-android/releases/latest) · [PDF 使用说明](output/pdf/GermanWordsAndroid-User-Guide.pdf) · [图片使用说明](output/pdf/GermanWordsAndroid-User-Guide.png) · [问题与建议](https://github.com/SQ-Cheng/german-words-android/issues)
+[Android 安装包](https://github.com/SQ-Cheng/GermanWords/releases/latest) · [Android PDF 使用说明](output/pdf/GermanWordsAndroid-User-Guide.pdf) · [问题与建议](https://github.com/SQ-Cheng/GermanWords/issues)
 
-## 使用
-
-应用名称：**德语单词**，当前版本 **1.0.1**（versionCode 2）。首次打开直接进入 E1；课程标题右侧的菜单可选择 E1–E7 或「虚词大盘点」。内置 8 份 Excel、460 个词条及全部对应录音，安装后无需联网。
-
-| 网页版功能 | Android 版本 |
+| 目录 | 内容 |
 | --- | --- |
-| 导入整个文件夹、导入 XLSX | 系统文件选择器；递归读取子文件夹并保存到应用内部存储 |
-| 多工作表、表头别名、例句 | 保留原版解析规则；原生 Java 解压，不依赖新版浏览器解压接口 |
-| 普通 / 中文 / 德语自测 | 卡片和列表均支持；列表逐条显示或隐藏答案 |
-| 名词冠词、复数、背景颜色 | 保留 der / die / das 对应颜色；答案揭晓前不泄露颜色 |
-| 卡片、列表、乱序、星标筛选 | 手机列表改为纵向词条；再次点击乱序恢复 Excel 顺序，筛选保留乱序 |
-| 音频匹配、手动及自动播放 | 保留路径、大小写、变音字符和同名单元匹配；Android MediaPlayer 播放 |
-| 星标保存、键盘快捷键 | 保留；新增每词表位置与乱序顺序保存、左右滑动、进度备份和恢复 |
+| `apps/android/` | Android Studio / Gradle 项目，Java 外壳与 WebView 界面 |
+| `apps/windows/` | Windows 浏览器离线版，双击 `De_words_helper.html` 打开 |
+| `shared/words/` | 两端共用的 Excel 词库与录音，唯一资源源目录 |
+| `shared/parser.js` | 两端共用的 XLSX 读取、表头识别与词条解析 |
+| `tools/` | 资源维护与验证脚本 |
+| `output/pdf/` | Android 使用说明 |
+| `artifacts/verification.md` | 历史设备验证记录 |
 
-词库菜单中「导入文件夹」可选择包含 Excel 和音频的文件夹。也可多选单个 `.xlsx` 和音频文件。导入后复制到应用内部存储，之后不依赖原始文件路径。旧版 `.xls` 与网页版一样需在 Excel/WPS 中另存为 `.xlsx`。
+两端均内置 8 份词表、460 个词条及对应录音，安装或解压后可离线学习。Android 开发与使用见 [Android 说明](apps/android/README.md)，更新记录见 [CHANGELOG](apps/android/CHANGELOG.md)。Windows 版用新版 Edge 或 Chrome 打开；直接打开源码页面时，点击「导入文件夹」，选择 `shared/words/`。
 
-「备份学习进度」导出星标和学习设置 JSON；通过「导入 Excel / 音频 / 备份」恢复。备份不包含自定义 Excel 和音频，需要另行保留原文件。
-
-## 兼容与架构
-
-- 最低 Android 6.0（API 23）；compileSdk / targetSdk 35。
-- 纯 Java Android 宿主 + 本地 HTML/CSS/JavaScript 学习引擎，不含 CPU 架构专属原生库，适用于 ARM、ARM64 和 x86 设备。
-- 支持手机、横屏、平板、刘海和系统栏边距。跟随系统字体大小，大字体使用可滚动页面并允许控件换行；真机已测试 100%–200% 文本缩放及 320dp 窄屏。建议使用可更新的 Android System WebView；页面布局需要 Chromium 87 及以上，Android 6.0 的原始旧 WebView 应先更新。
-- 不申请互联网和整个存储空间权限。使用系统文件选择器授权读取；固定 HTTPS 本地域名的资源由应用拦截提供，禁止外部页面、file:// 和内容 URI 浏览。
-- 发音使用本地录音，不要求设备安装德语 TTS。音频格式支持程度取决于设备解码器；内置 MP3 全部完成匹配检查。
-- 原生文件选择器与本地 WebView 资源的做法参考 [Android 文件访问文档](https://developer.android.com/training/data-storage/shared/documents-files) 和 [加载应用内网页内容](https://developer.android.com/develop/ui/views/layout/webapps/load-local-content)。
-
-## 开发与编译
-
-用 Android Studio 打开本文件夹。当前电脑使用 `E:\Android Studio\jbr` 与 `E:\Android\SDK`；其他电脑需修改 `local.properties`。项目使用 Android Gradle Plugin 8.8.0、Gradle 8.11.1，Gradle Wrapper 已包含。
-
-PowerShell：
+Windows 离线发布包：
 
 ```powershell
-$env:JAVA_HOME = 'E:\Android Studio\jbr'
+python tools/build-windows.py
+```
+
+将生成的 `output/windows/` 整个文件夹交给用户，保留 HTML、`parser.js` 与 `words/`。双击其中的 HTML，导入同目录的 `words/` 即可使用；用户无需 Python。生成目录不入库，每次构建会重新生成。Windows 本轮保留原有学习界面与功能，不增加 Android 的备份和位置恢复功能。
+
+从仓库根目录验证公共解析器和 Android 学习引擎（Node.js 22 或更高版本）：
+
+```powershell
+node tools/test-parser.mjs
+node tools/test-engine.mjs
+```
+
+Android 构建：
+
+```powershell
+cd apps/android
 .\gradlew.bat assembleDebug lintDebug
-node .\tools\test-engine.mjs
 ```
 
-APK：`app/build/outputs/apk/debug/app-debug.apk`。这是使用 Android 默认开发签名的可安装测试版本；上架或正式发布需要独立发布签名。
+需要 JDK 17+ 与 Android SDK 35；用 Android Studio 打开 `apps/android/` 配置 SDK，或通过 `ANDROID_HOME` 指定 SDK。`local.properties` 不入库。调试 APK 位于 `apps/android/app/build/outputs/apk/debug/app-debug.apk`；本轮只更新源码，不自动创建 Releases。
 
-`engine.js`、`index.html`、`mobile.css`、`mobile.js` 直接维护 Android 版本，已移除容易覆盖修改的 HTML 字符串替换生成器。更新内置 `words` 文件后执行 `python tools/index-assets.py` 重建资源索引。
+Gradle 自动打包 `shared/parser.js` 和 `shared/words/` 并生成资源索引，更新公共文件无需手动复制。Android 生成资源位于 `apps/android/app/build/generated/sharedAssets/`。
 
-本文件夹独立使用 Git 管理；`v1.0.0` 保留初始实现，`v1.0.1` 包含本次修复。构建目录、APK、设备截图、日志和本机 SDK 路径不入库。
+公共解析器只处理文件与数据，不依赖页面或 Android。浏览器默认使用 `DecompressionStream` 解压；Android 在 `mobile.js` 中提供原生解压函数，通过 `WordParser.read(file, inflateRaw)` 传入。两端界面、音频播放、文件导入与学习状态保持各自实现。Windows 发布脚本仅复制公共文件并调整脚本路径。
 
-## 验证
+本次整理的验证范围见 [共享组件验证记录](artifacts/shared-components-verification.md)。
 
-- `tools/test-engine.mjs`：读取实际 8 份 Excel；460/460 词条都匹配录音；覆盖乱序切换与恢复、筛选后的完整顺序保存、列表双向自测、自动发音计时器、失效或失败的异步读取、星标、空筛选及特殊字符。
-- `app/src/androidTest/`：在手机真实 WebView 中测试同一学习引擎、每词表位置恢复、列表、返回操作与触控布局；测试原生 MediaPlayer 和文件内容 URI 导入流程。测试专用内容提供器只在测试 APK 中存在。
-- 真机：小米 14（23127PN0CC），Android 16 / API 36，1200 × 2670，Android System WebView 143。实际测试范围以 `artifacts/verification.md` 为准；没有在所有旧手机或所有厂商设备上测试。
-
-运行真机测试：
-
-```powershell
-.\gradlew.bat assembleDebug assembleDebugAndroidTest
-& 'E:\Android\SDK\platform-tools\adb.exe' install -r .\app\build\outputs\apk\debug\app-debug.apk
-& 'E:\Android\SDK\platform-tools\adb.exe' install -r .\app\build\outputs\apk\androidTest\debug\app-debug-androidTest.apk
-& 'E:\Android\SDK\platform-tools\adb.exe' shell am instrument -w cn.study.germanwords.test/cn.study.germanwords.SmokeInstrumentation
-```
-
-部分小米系统需要在运行测试时另行启动应用，并允许 USB 安装。测试会恢复原有星标、学习设置和导入目录。
-
-当前电脑可直接运行 `python .\tools\device-test.py 52ec00da`，脚本会安装两个 APK、启动测试提供器并处理前台启动。测试结束后，可用 `adb uninstall cn.study.germanwords.test` 移除测试辅助包；主应用保留。
-
-## GitHub 项目与反馈
-
-公开仓库：[SQ-Cheng/german-words-android](https://github.com/SQ-Cheng/german-words-android)。源代码、更新记录与 PDF 使用说明在仓库中；[Releases](https://github.com/SQ-Cheng/german-words-android/releases) 提供可安装 APK 和说明书下载。
-
-遇到问题或有改进建议，请登录 GitHub，在 [Issues](https://github.com/SQ-Cheng/german-words-android/issues) 中点击 **New issue**。描述操作步骤、预期结果、实际情况，并提供手机型号、Android 版本和应用版本；需要时附截图。
-
-也可扫描使用说明末尾的问卷星二维码填写反馈；说明书提供 PDF 和高清 PNG 两种格式。
+两个平台在同一 `main` 上开发，通过功能分支修改；构建产物与本机 SDK 路径不入库。

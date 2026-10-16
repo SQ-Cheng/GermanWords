@@ -8,3 +8,4 @@ artifacts/*.apk
 artifacts/*.png
 artifacts/*.log
 tmp/
+output/windows/

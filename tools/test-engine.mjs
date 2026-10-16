@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {inflateRawSync} from 'node:zlib';
 import {fileURLToPath} from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const web=path.join(root,'app/src/main/assets/web');
+const web=path.join(root,'apps/android/app/src/main/assets/web');
 const storage=new Map();
 class Element {
   constructor(){this.style={};this.dataset={};this.attributes={};this.children=[];this.textContent='';this.innerText='';this.className='';this.value='normal';this.scrollTop=0;const classes=new Set();this.classList={add:c=>classes.add(c),remove:c=>classes.delete(c),contains:c=>classes.has(c),toggle:(c,on)=>on?classes.add(c):classes.delete(c)};}
@@ -23,10 +23,12 @@ const context=vm.createContext({console,TextDecoder,Uint8Array,DataView,Blob,Res
   Android:{inflate:s=>inflateRawSync(Buffer.from(s,'base64')).toString('base64'),play(){},stopAudio(){}},
   window:{localStorage,Android:true}
 });
+vm.runInContext(fs.readFileSync(path.join(root,'shared/parser.js'),'utf8'),context);
 vm.runInContext(fs.readFileSync(path.join(web,'engine.js'),'utf8'),context);
 vm.runInContext(fs.readFileSync(path.join(web,'mobile.js'),'utf8').replace(/reloadLibrary\(\);\s*$/, ''),context);
 vm.runInContext('autoPlayEnabled=false;',context);
-const files=JSON.parse(fs.readFileSync(path.join(web,'manifest.json'),'utf8')).map(item=>({name:item.name,root:'built-in',webkitRelativePath:item.path,url:item.url,arrayBuffer:async()=>{const b=fs.readFileSync(path.join(web,item.path));return b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength);}}));
+const words=path.join(root,'shared/words');
+const files=fs.readdirSync(words,{recursive:true}).filter(name=>fs.statSync(path.join(words,name)).isFile()).map(name=>({name:path.basename(name),root:'built-in',webkitRelativePath:'words/'+name.replaceAll('\\','/'),url:'/assets/web/words/'+name.replaceAll('\\','/'),arrayBuffer:async()=>{const b=fs.readFileSync(path.join(words,name));return b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength);}}));
 context.files=files;
 vm.runInContext('handleFiles(files)',context);
 let total=0, audio=0;

@@ -1,5 +1,12 @@
 # 更新记录
 
+## 4.0.1 · 2026-10-16
+
+- Android 与 Windows 统一版本号为 4.0.1，Android versionCode 增至 3。
+- 两端归入 `apps/android/` 与 `apps/windows/`，保留各端界面和平台功能。
+- Excel 词库与录音统一维护在 `shared/words/`，构建时自动打包并生成 Android 资源索引。
+- 两端共用 `shared/parser.js` 的 XLSX、表头和词条解析逻辑；Android 继续使用原生解压。
+
 ## 1.0.1 · 2026-10-08
 
 - 删除顶部「德语单词」栏、标语和重复状态说明；词数放在单元标题后，词库菜单移到这一行右侧。保留操作标签、操作提示和错误反馈。
