@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {inflateRawSync} from 'node:zlib';
 import {fileURLToPath} from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const web=path.join(root,'app/src/main/assets/web');
+const web=path.join(root,'apps/android/app/src/main/assets/web');
 const storage=new Map();
 class Element {
   constructor(){this.style={};this.dataset={};this.attributes={};this.children=[];this.textContent='';this.innerText='';this.className='';this.value='normal';this.scrollTop=0;const classes=new Set();this.classList={add:c=>classes.add(c),remove:c=>classes.delete(c),contains:c=>classes.has(c),toggle:(c,on)=>on?classes.add(c):classes.delete(c)};}

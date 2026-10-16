@@ -9,8 +9,8 @@ def run(*args):
     result=subprocess.run(adb+list(args),capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=60)
     print(result.stdout+result.stderr,flush=True)
     result.check_returncode()
-run('install','-r',str(root/'app/build/outputs/apk/debug/app-debug.apk'))
-run('install','-r',str(root/'app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk'))
+run('install','-r',str(root/'apps/android/app/build/outputs/apk/debug/app-debug.apk'))
+run('install','-r',str(root/'apps/android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk'))
 # Start the test content provider once; Xiaomi may hide unlaunched packages from other apps.
 run('shell','content','query','--uri','content://cn.study.germanwords.test.documents/tree/root/document/root/children')
 run('shell','input','keyevent','KEYCODE_WAKEUP')

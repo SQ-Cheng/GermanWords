@@ -2,7 +2,7 @@
 from pathlib import Path
 import json
 
-web = Path(__file__).resolve().parents[1] / 'app/src/main/assets/web'
+web = Path(__file__).resolve().parents[1] / 'apps/android/app/src/main/assets/web'
 entries = [
     {'name': path.name, 'path': path.relative_to(web).as_posix(),
      'url': '/assets/web/' + path.relative_to(web).as_posix()}
