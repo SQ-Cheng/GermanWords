@@ -16,7 +16,8 @@ Android 与 Windows 离线版共用 [GermanWords 仓库](https://github.com/SQ-C
 | `apps/windows/` | Windows 浏览器离线版，双击 `De_words_helper.html` 打开 |
 | `shared/words/` | 两端共用的 Excel 词库与录音，唯一资源源目录 |
 | `shared/parser.js` | 两端共用的 XLSX 读取、表头识别与词条解析 |
-| `tools/` | 资源维护与验证脚本 |
+| `tools/` | 构建工具 |
+| `tests/` | 解析器、学习引擎测试及真机测试入口 |
 | `output/pdf/` | Android 使用说明 |
 | `artifacts/verification.md` | 历史设备验证记录 |
 
@@ -33,8 +34,8 @@ python tools/build-windows.py
 从仓库根目录验证公共解析器和 Android 学习引擎（Node.js 22 或更高版本）：
 
 ```powershell
-node tools/test-parser.mjs
-node tools/test-engine.mjs
+node tests/test-parser.mjs
+node tests/test-engine.mjs
 ```
 
 Android 构建：

@@ -539,16 +539,6 @@
         return "bg-other";
       }
 
-      // 翻页按钮的可用状态
-      function updateNav() {
-        const prev = document.getElementById("btnPrevCard");
-        const next = document.getElementById("btnNextCard");
-        if (!prev || !next) return;
-        prev.disabled = currentIndex <= 0;
-        next.disabled =
-          displayWords.length === 0 || currentIndex >= displayWords.length - 1;
-      }
-
       function updateUI() {
         const markedCount = currentFileWords.filter((w) => w.marked).length;
         document.getElementById(
@@ -578,7 +568,6 @@
           listCont.style.display = "flex";
           renderList();
         }
-        updateNav();
         paintStudy();
         saveStudy();
       }
@@ -735,7 +724,6 @@
         document.getElementById("cardIndexInfo").innerText = `${
           currentIndex + 1
         } / ${displayWords.length}`;
-        updateNav();
       }
 
       function renderList() {

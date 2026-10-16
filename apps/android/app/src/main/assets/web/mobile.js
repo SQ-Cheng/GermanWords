@@ -72,7 +72,7 @@ function saveStudy() {
   catch (_) { notify('手机存储不足，无法保存学习进度', 'error'); }
 }
 function paintStudy() {
-  const title = currentFileName ? currentFileName.replace(/_单词汇总\.xlsx$/i, ' · 单元词汇').replace(/\.xlsx$/i, '') : '选择一份词表';
+  const title = currentFileName ? currentFileName.replace(/_单词汇总\.xlsx$/i, '').replace(/\.xlsx$/i, '') : '选择一份词表';
   document.getElementById('lessonTitle').textContent = title;
   document.getElementById('lessonCount').textContent = currentFileWords.length + ' 词';
   document.getElementById('studyProgress').style.width = (displayWords.length ? (currentIndex + 1) / displayWords.length * 100 : 0) + '%';
