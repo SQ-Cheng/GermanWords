@@ -23,6 +23,7 @@ const context=vm.createContext({console,TextDecoder,Uint8Array,DataView,Blob,Res
   Android:{inflate:s=>inflateRawSync(Buffer.from(s,'base64')).toString('base64'),play(){},stopAudio(){}},
   window:{localStorage,Android:true}
 });
+vm.runInContext(fs.readFileSync(path.join(root,'shared/parser.js'),'utf8'),context);
 vm.runInContext(fs.readFileSync(path.join(web,'engine.js'),'utf8'),context);
 vm.runInContext(fs.readFileSync(path.join(web,'mobile.js'),'utf8').replace(/reloadLibrary\(\);\s*$/, ''),context);
 vm.runInContext('autoPlayEnabled=false;',context);
