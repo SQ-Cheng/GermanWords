@@ -24,5 +24,6 @@
 - 从已提交代码建立独立干净检出，不复制 `local.properties` 或旧构建文件，仅设置 JDK 与 `ANDROID_HOME`：两项 Node 测试、Windows 打包、Android 调试版与测试 APK 构建、lint 均通过；干净检出的 APK 也逐字节核对全部公共资源。Lint 为 0 错误、3 个既有警告（OldTargetApi、UnusedAttribute、SetJavaScriptEnabled）。
 - Android APK 元数据确认为 `versionName=4.0.1`、`versionCode=3`；Windows 页面标题、可见版本和 README 同步更新到 4.0.1。
 - 已保留远端主分支新增的开发者、致谢信息，并恢复仓库首页的安装包与使用说明入口。旧版验证记录和 Releases 保留各自原版本，不宣称已发布 4.0.1 安装包。
+- GitHub 仓库改名为 `SQ-Cheng/GermanWords`，本地完整仓库迁入 `GermanWords/`，`origin` 和 README 链接同步更新。迁移后重新通过解析器、学习引擎、Windows 浏览器验证，以及 Android 调试版、Release、测试 APK 干净构建和 lint。
 
 Android 测试 APK 已成功编译，但本轮没有连接设备，未执行真机 instrumentation。浏览器验证不替代 Android WebView 与原生文件选择器、MediaPlayer 的设备测试。之前的设备测试记录保留在 `verification.md`。

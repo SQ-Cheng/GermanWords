@@ -1,6 +1,6 @@
 # 德语单词记忆助手
 
-Android 与 Windows 离线版共用一个仓库，两个客户端分别维护界面与平台功能。
+Android 与 Windows 离线版共用 [GermanWords 仓库](https://github.com/SQ-Cheng/GermanWords)，两个客户端分别维护界面与平台功能。项目根文件夹为 `GermanWords/`；Android Studio 仍打开其中的 `apps/android/`。
 
 当前源码版本：**Android 4.0.1**（versionCode 3）、**Windows 4.0.1**。已有 Releases 安装包仍以各发布条目的版本号为准。
 
@@ -8,7 +8,7 @@ Android 与 Windows 离线版共用一个仓库，两个客户端分别维护界
 
 致谢：王老师，以及开发之前版本的同学。
 
-[Android 安装包](https://github.com/SQ-Cheng/german-words-android/releases/latest) · [Android PDF 使用说明](output/pdf/GermanWordsAndroid-User-Guide.pdf) · [问题与建议](https://github.com/SQ-Cheng/german-words-android/issues)
+[Android 安装包](https://github.com/SQ-Cheng/GermanWords/releases/latest) · [Android PDF 使用说明](output/pdf/GermanWordsAndroid-User-Guide.pdf) · [问题与建议](https://github.com/SQ-Cheng/GermanWords/issues)
 
 | 目录 | 内容 |
 | --- | --- |
