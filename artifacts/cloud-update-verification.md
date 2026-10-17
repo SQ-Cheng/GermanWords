@@ -25,9 +25,19 @@
 - Android `assembleDebug assembleRelease assembleDebugAndroidTest lintDebug` 通过；Lint 0 error、2 个既有 warning（API 33 的 XML 属性及启用本地 JavaScript）。
 - APK 通过 apksigner 验证，Release 构建关闭调试，以历史开发签名签署。起始 beta.1 已通过 adb 覆盖安装到小米 14（Android 16）。
 
-## 真机确认待完成
+## Android 真机完整升级与回归：通过
 
-手机处于锁屏状态，已请求用户解锁并确认安装来源权限。尚未把 Android 的云盘下载→系统确认→升级成功记录为通过；不能用 adb 直接安装目标版本代替该验证。完整真机回归也须在解锁后运行。
+用户解锁手机并允许安装来源、确认系统升级后，小米 14（Android 16）完成以下验证：
+
+1. 起始安装为 beta.1 / versionCode 6；应用自动从当前云盘发现 beta.2，并显示签名中的更新说明。
+2. 点击下载后，应用完成云盘 APK 下载、SHA-256 / 包名 / 版本 / 应用签名校验，首次引导到系统安装来源设置。用户授权返回后，由 PackageInstaller 显示 `4.2.0-beta.1 -> 4.2.0-beta.2`、来源为「德语单词」的系统安装界面。
+3. 用户确认安装后，`dumpsys package` 返回 versionCode 7 / versionName 4.2.0-beta.2，installerPackageName 和 initiatingPackageName 均为 `cn.study.germanwords`。目标版本不是通过 adb 安装。
+4. 从设备读取实际安装的 base.apk，SHA-256 为 `37e18ba37dde3545da6384bf59f693faccf5e8e9d02b1f8b9624cf07d9a4b9de`，与云盘目标包一致。
+5. 重开应用，原有 E1 学习位置 `52 / 65` 和 42 个星标保留，自定义导入词库仍在。手动「检查更新」显示「已是最新测试版本：4.2.0-beta.2」。截图为忽略的 `artifacts/gw-update-after.png`、`artifacts/gw-update-latest.png`。
+6. 安装独立测试辅助 APK，直接针对这份通过云盘更新的 **Release 包**运行现有 `SmokeInstrumentation`，没有先以 Debug 包覆盖目标。真实 WebView 的 460 词 / 460 录音匹配、混合学习、搜索、三种模式、星标隔离、进度恢复均通过；实际滑动、进度拖动、100/130/150/200% 字号单屏与圆形控件、320dp、主题与系统栏、原生音频及倍速、SAF 导入和横屏也全部通过。
+7. 真机日志为忽略的 `artifacts/cloud-update-device.log`。测试结束还原学习设置与导入目录，卸载 `cn.study.germanwords.test`，手机保留云盘升级后的 beta.2 Release 版本。
+
+本次手机截图显示使用 5G；实际完成了一次移动网络更新，但不据此承诺所有校外网络长期可用。
 
 ## 测试边界
 
