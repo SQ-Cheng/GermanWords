@@ -2,7 +2,7 @@
 
 本仓库的 Android Studio 项目，来自「德语单词记忆助手 4.0」。Windows 离线版位于 `../windows/`。
 
-[下载安装包](https://github.com/SQ-Cheng/GermanWords/releases/tag/v4.2.0-beta.3) · [PDF 使用说明](../../output/pdf/GermanWordsAndroid-User-Guide.pdf) · [图片使用说明](../../output/pdf/GermanWordsAndroid-User-Guide.png) · [问题与建议](https://github.com/SQ-Cheng/GermanWords/issues)
+[下载安装包](https://github.com/SQ-Cheng/GermanWords/releases/tag/v4.2.0-beta.5) · [PDF 使用说明](../../output/pdf/GermanWordsAndroid-User-Guide.pdf) · [图片使用说明](../../output/pdf/GermanWordsAndroid-User-Guide.png) · [问题与建议](https://github.com/SQ-Cheng/GermanWords/issues)
 
 ## 使用
 

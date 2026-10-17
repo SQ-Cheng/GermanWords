@@ -21,7 +21,7 @@ GermanWords 是面向 Android 和 Windows 的离线德语词汇学习工具，�
 
 ## 最新版本与安装
 
-当前最新预发布版为 [**4.2.0-beta.3**](https://github.com/SQ-Cheng/GermanWords/releases/tag/v4.2.0-beta.3)，提供 Android APK、Windows x64 桌面安装包、旧版迁移包及 SHA-256 校验文件。正式版与历史安装包见 GitHub Releases；预发布版以对应发布页说明为准。
+当前最新预发布版为 [**4.2.0-beta.5**](https://github.com/SQ-Cheng/GermanWords/releases/tag/v4.2.0-beta.5)，提供 Android APK、Windows x64 桌面安装包、旧版迁移包及 SHA-256 校验文件。正式版与历史安装包见 GitHub Releases；预发布版以对应发布页说明为准。
 
 **Android：**下载 APK 后按系统提示安装。覆盖升级须使用相同应用签名。
 
@@ -31,7 +31,7 @@ GermanWords 是面向 Android 和 Windows 的离线德语词汇学习工具，�
 
 ## 源码与开发
 
-本仓库同时维护 Android 和 Windows 客户端。开发源码可能领先于公开安装包；复现已发布版本请检出相应 Git 标签，例如 `v4.2.0-beta.3`。功能修改在开发分支中进行，本机 SDK 路径、私钥和构建产物不提交到 Git。
+本仓库同时维护 Android 和 Windows 客户端。开发源码可能领先于公开安装包；复现已发布版本请检出相应 Git 标签，例如 `v4.2.0-beta.5`。功能修改在开发分支中进行，本机 SDK 路径、私钥和构建产物不提交到 Git。
 
 | 目录 | 职责 |
 | --- | --- |

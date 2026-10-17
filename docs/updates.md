@@ -11,7 +11,7 @@
 
 `shared/app-config.json` 唯一维护源码版本和云盘来源；Windows 的独立元数据路径、公钥位于 `windowsUpdater`。两个入口由同一维护工具发布，平台安装协议不强行统一。新桌面测试发布没有修改旧更新信息或 Android 安装包。
 
-当前云盘 Android / Windows 更新验证目标为 **4.2.0-beta.4**（Android versionCode 9），仅递增版本，无功能改动。安装 GitHub beta.3 后可测试升级到 beta.4；旧原型的兼容 ZIP 也同步更新。GitHub 最新预发布版仍为 4.2.0-beta.3，当前开发分支尚未合并 main。
+当前发布版本为 **4.2.0-beta.5**（Android versionCode 10），双端安装包和更新入口同步发布，源码已合并 main。GitHub 发布与更新通道使用同版本的签名安装包，旧原型兼容 ZIP 同步维护。
 
 ## 用户流程
 
