@@ -9,6 +9,7 @@
       let displayWords = []; // 当前展示列表（受筛选 / 乱序影响）
       let currentIndex = 0;
       let isFilterActive = false;
+      let searchQuery = '';
       let currentView = "card";
       let currentFileName = "";
       let currentMode = "normal"; // 'normal', 'test-zh', 'test-de'
@@ -468,6 +469,7 @@
           });
         }
 
+        baseList = baseList.filter(word => Vocabulary.matches(word, searchQuery));
         displayWords = baseList;
         currentIndex = keepIndex
           ? Math.min(currentIndex, Math.max(0, displayWords.length - 1))
@@ -511,6 +513,12 @@
         refreshDisplayList();
       }
 
+      function searchWords(value) {
+        searchQuery = value.trim();
+        revealedListIds.clear();
+        refreshDisplayList();
+      }
+
       function switchView(view) {
         pauseStudyAudio();
         lastAutoKey = null;
@@ -551,7 +559,7 @@
         const emptyEl = document.getElementById("emptyState");
         emptyEl.style.display = "none";
         if (displayWords.length === 0) {
-          if (isFilterActive && currentFileWords.length > 0) {
+          if ((isFilterActive || searchQuery) && currentFileWords.length > 0) {
             cardCont.style.display = currentView === "card" ? "flex" : "none";
             listCont.style.display = currentView === "list" ? "flex" : "none";
             renderEmptyView();
@@ -578,7 +586,7 @@
           const cardEl = document.getElementById("cardView");
           cardEl.className = "card bg-other";
           document.getElementById("germanArea").classList.remove("hidden-content");
-          document.getElementById("cardGerman").innerText = "没有星标单词";
+          document.getElementById("cardGerman").innerText = searchQuery ? "未找到匹配单词" : "没有星标单词";
           document.getElementById("chineseArea").style.visibility = "hidden";
           document.getElementById("metaArea").style.visibility = "hidden";
           document.getElementById("cardIndexInfo").innerText = "";
@@ -592,7 +600,7 @@
           document.querySelector("#wordTable tbody").innerHTML =
             '<tr><td colspan="' +
             cols +
-            '" style="text-align:center;padding:30px;color:#999;">没有星标单词</td></tr>';
+            '" style="text-align:center;padding:30px;color:var(--muted);">' + (searchQuery ? '未找到匹配单词' : '没有星标单词') + '</td></tr>';
         }
       }
 

@@ -55,6 +55,13 @@ process.chdir(path.resolve(__dirname,'..'));
       assert.equal(await page.locator('#germanArea').evaluate(el=>el.classList.contains('hidden-content')), true);
       await page.locator('#cardView').click();
       assert.equal(await page.locator('#germanArea').evaluate(el=>el.classList.contains('hidden-content')), false);
+      await page.locator('#wordSearch').fill(' LERNEN ');
+      assert.ok(await page.evaluate(()=>displayWords.length>0 && displayWords.every(w=>/lernen/i.test(w.german))));
+      await page.locator('#wordSearch').fill('no-such-word-123');
+      assert.equal(await page.evaluate(()=>displayWords.length),0);
+      assert.equal(await page.locator('#cardGerman').innerText(),'未找到匹配单词');
+      await page.locator('#wordSearch').fill('');
+      assert.equal(await page.evaluate(()=>displayWords.length),65);
       await page.evaluate(() => {
         document.getElementById('modeSelect').value='normal';
         changeMode();

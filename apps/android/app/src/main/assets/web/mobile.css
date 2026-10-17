@@ -108,3 +108,7 @@ tr.marked{border-color:var(--mark)}
 .large-text .card-example{font-size:13px;line-height:1.4;margin-top:6px}
 .large-text .mode-select{font-size:12px}
 @media(max-width:350px){.large-text .top-bar{flex-wrap:wrap}.large-text .mode-select{flex:none;width:100%}}
+
+.word-search{display:flex;gap:8px;flex-shrink:0}
+.word-search input{flex:1;min-width:0;min-height:44px;padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--ink);font:inherit;font-size:14px}
+.word-search button{font-size:14px;color:var(--primary-color);padding:8px}

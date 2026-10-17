@@ -6,6 +6,7 @@
     <title>德语单词记忆助手 4.0.2-beta.1</title>
     <script src="../../shared/theme.js"></script>
     <script src="../../shared/playback.js"></script>
+    <script src="../../shared/vocabulary.js"></script>
     <link rel="stylesheet" href="../../shared/theme.css" />
     <!-- 4.0：不再依赖外部 CDN，Excel 读取已内置，断网也能用 -->
     <style>
@@ -202,6 +203,8 @@
         color: var(--surface);
         border-color: var(--ink);
       }
+
+      #wordSearch { min-width:120px; width:220px; max-width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:20px; background:var(--surface); color:var(--ink); font:inherit; }
 
       .mode-select {
         padding-right: 30px;
@@ -567,6 +570,7 @@
 
     <div class="main-content">
       <div class="top-bar">
+        <input id="wordSearch" type="search" placeholder="搜索当前词表：德语 / 中文" aria-label="搜索当前词表中的单词" oninput="searchWords(this.value)" />
         <select id="modeSelect" class="mode-select" onchange="changeMode()">
           <option value="normal">📖 普通模式</option>
           <option value="test-zh">🇨🇳 中文自测</option>
@@ -694,6 +698,7 @@
       let displayWords = []; // 当前展示列表（受筛选 / 乱序影响）
       let currentIndex = 0;
       let isFilterActive = false;
+      let searchQuery = '';
       let currentView = "card";
       let currentFileName = "";
       let currentMode = "normal"; // 'normal', 'test-zh', 'test-de'
@@ -1113,6 +1118,7 @@
       // === 列表管理（筛选与排序） ===
       // keepIndex：在“只看星标”里取消星标时不要跳回第一张
       function refreshDisplayList(keepIndex) {
+        pauseStudyAudio();
         let baseList = currentFileWords.slice();
 
         // 筛选
@@ -1122,7 +1128,7 @@
           });
         }
 
-        displayWords = baseList;
+        displayWords = baseList.filter(word => Vocabulary.matches(word, searchQuery));
         currentIndex = keepIndex
           ? Math.min(currentIndex, Math.max(0, displayWords.length - 1))
           : 0;
@@ -1168,6 +1174,16 @@
         document
           .getElementById("btnFilter")
           .classList.toggle("active", isFilterActive);
+        refreshDisplayList();
+      }
+
+      function pauseStudyAudio() {
+        if (autoPlayTimer) { clearTimeout(autoPlayTimer); autoPlayTimer = null; }
+        if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+      }
+
+      function searchWords(value) {
+        searchQuery = value.trim();
         refreshDisplayList();
       }
 
@@ -1220,9 +1236,10 @@
         const cardCont = document.getElementById("cardViewContainer");
         const listCont = document.getElementById("listViewContainer");
         const emptyEl = document.getElementById("emptyState");
+        emptyEl.style.display = "none";
 
         if (displayWords.length === 0) {
-          if (isFilterActive && currentFileWords.length > 0) {
+          if ((isFilterActive || searchQuery) && currentFileWords.length > 0) {
             cardCont.style.display = currentView === "card" ? "flex" : "none";
             listCont.style.display = currentView === "list" ? "flex" : "none";
             renderEmptyView();
@@ -1251,19 +1268,21 @@
         if (currentView === "card") {
           const cardEl = document.getElementById("cardView");
           cardEl.className = "card bg-other";
-          document.getElementById("cardGerman").innerText = "没有星标单词";
+          document.getElementById("germanArea").classList.remove("hidden-content");
+          document.getElementById("cardGerman").innerText = searchQuery ? "未找到匹配单词" : "没有星标单词";
           document.getElementById("chineseArea").style.visibility = "hidden";
           document.getElementById("metaArea").style.visibility = "hidden";
           document.getElementById("cardIndexInfo").innerText = "";
           document.getElementById("pronounceIcon").style.display = "none";
           document.getElementById("exampleArea").style.display = "none";
+          document.getElementById("clickHint").style.opacity = "0";
           cardEl.classList.remove("marked");
         } else {
           const cols = document.querySelectorAll("#wordTable thead th").length || 5;
           document.querySelector("#wordTable tbody").innerHTML =
             '<tr><td colspan="' +
             cols +
-            '" style="text-align:center;padding:30px;color:#999;">没有星标单词</td></tr>';
+            '" style="text-align:center;padding:30px;color:var(--muted);">' + (searchQuery ? '未找到匹配单词' : '没有星标单词') + '</td></tr>';
         }
       }
 

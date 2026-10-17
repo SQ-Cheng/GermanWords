@@ -10,7 +10,7 @@ if output.exists():
     shutil.rmtree(output)
 output.mkdir(parents=True)
 html = (root / 'apps/windows/De_words_helper.html').read_text(encoding='utf-8')
-for name in ['parser.js', 'theme.js', 'theme.css', 'playback.js']:
+for name in ['parser.js', 'theme.js', 'theme.css', 'playback.js', 'vocabulary.js']:
     html = html.replace('../../shared/' + name, name)
     shutil.copy2(root / 'shared' / name, output)
 (output / 'De_words_helper.html').write_text(html, encoding='utf-8', newline='\n')

@@ -89,6 +89,8 @@ function paintStudy() {
   const title = currentFileName ? currentFileName.replace(/_单词汇总\.xlsx$/i, '').replace(/\.xlsx$/i, '') : '选择一份词表';
   document.getElementById('lessonTitle').textContent = title;
   document.getElementById('lessonCount').textContent = currentFileWords.length + ' 词';
+  const summary = document.getElementById('searchSummary');
+  summary.textContent = searchQuery ? displayWords.length + ' 个匹配词 · 关闭词库查看' : '';
   const progress = document.getElementById('studyProgress');
   progress.max = Math.max(0, displayWords.length - 1);
   progress.value = currentIndex;
