@@ -14,3 +14,7 @@
 *.xlsx -text
 *.jar -text
 *.pdf -text
+
+*.rs text eol=lf
+*.toml text eol=lf
+Cargo.lock text eol=lf

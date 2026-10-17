@@ -39,3 +39,7 @@
 4. 调整响应布局，运行公共/浏览器和真实 WebView2 回归；验证安装、升级、数据保留与卸载，更新文档并提交。
 
 参考：[Tauri 前置环境](https://v2.tauri.app/start/prerequisites/)、[Windows 安装器](https://v2.tauri.app/distribute/windows-installer/)、[官方更新插件](https://v2.tauri.app/plugin/updater/)。最终验证结果另行记录，计划中的项目不视为已通过。
+
+## 实现后的复核
+
+按上述边界完成桌面宿主、资源准备、迁移备份与响应布局。删除旧 PowerShell 更新器，兼容 ZIP 仅由同一前端生成，没有保留第二套更新实现。实际完成 beta.2 安装 → 云盘提示 → beta.3 签名安装 → 自动重启 → 数据保留 → 标准卸载；目标版本完成真实 WebView2 回归。详细证据与未验证设备见 [桌面验证记录](../artifacts/windows-desktop-verification.md)。

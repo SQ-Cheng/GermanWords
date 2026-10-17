@@ -1,53 +1,50 @@
-# 云盘更新测试
+# 云盘更新与维护
 
-开发分支 `codex/update-source-investigation`，基线为 GitHub 已发布的 4.1.0-beta.1。本分支用 4.2.0-beta.1（versionCode 6）升级到 4.2.0-beta.2（versionCode 7），用于验证完整更新流程，尚未发布 GitHub Release。
+下载来源仍为 [当前清华云盘](https://cloud.tsinghua.edu.cn/d/361a8eccb1624c65ae26/)，维护者通过既有上传入口上传。没有自建服务器、网盘登录会话或运行时上传凭据。
 
-## 使用
+## 当前入口
 
-[云盘下载目录](https://cloud.tsinghua.edu.cn/d/361a8eccb1624c65ae26/) 包含两端 beta.1 / beta.2 完整包，以及 `update-beta.json`。想验证升级，应先使用 beta.1；直接使用 beta.2 则显示已是最新测试版。
+| 客户端 | 固定更新信息 | 安装方式 |
+| --- | --- | --- |
+| Android / 旧 Windows 原型 | `update-beta.json`，原有 RSA envelope | Android 系统 PackageInstaller；旧 Windows 原型保留原 ZIP 更新器 |
+| 新 Windows 桌面版 | `update-windows-beta.json`，Tauri 官方格式 | 已签署更新签名的 NSIS 安装包，由官方更新插件执行 |
 
-- Windows：解压 ZIP 到普通可写目录，双击 `GermanWords.cmd`。页面立即打开，后台检查更新，发现新版本后询问是否下载安装；完成后刷新学习页面。手动检查用 `Check updates.cmd`。直接打开 HTML 可继续离线学习，但不会启动更新器。不要解压到新目录覆盖测试：更新器在原目录替换应用文件，保持浏览器存储所属的页面路径；首次仍需导入包内 `words/`。
-- Android：安装 beta.1 后启动，或在侧栏点击「检查更新」。确认下载后，首次需在系统设置允许本应用安装更新，再返回，由系统确认升级。拒绝或取消不会卸载旧版本。应用数据和本地导入目录保留；不是静默安装。
+`shared/app-config.json` 唯一维护源码版本和云盘来源；Windows 的独立元数据路径、公钥位于 `windowsUpdater`。两个入口由同一维护工具发布，平台安装协议不强行统一。新桌面测试发布没有修改旧更新信息或 Android 安装包。
 
-两端自动检查至多每天一次，手动检查不受此限制。断网、下载服务异常或签名错误不影响离线学习；自动检查失败保持安静，手动检查显示错误。已有 4.1.0-beta.1 没有更新器，需先手动安装新的测试版本。
+Windows 桌面 beta.2 可从云盘升级到 beta.3；Android 和旧 Windows 的现有云盘测试包仍为 beta.2。GitHub 当前已发布版本仍为 4.1.0-beta.1，本分支没有创建 GitHub Release。
 
-## 边界
+## 用户流程
 
-`shared/app-config.json` 是双端版本、通道、下载分享、固定元数据路径和验签公钥的唯一配置；Android Gradle 与 Windows 打包脚本读取它。这里仅共享协议数据，平台安装分别留在 Java 宿主和 PowerShell，不增加 JavaScript 网络代理、常驻服务或跨平台安装框架。
+两端启动后后台检查，每天至多一次；手动检查不受此限制，断网不影响学习。发现更新后先展示说明、询问是否下载。清华云盘仍只存放更新信息与版本化完整包，不加载远程学习页面。
 
-Windows 使用系统自带 PowerShell 5.1 / .NET 进行 HTTPS 请求，从而不受 HTML 页面的 CORS 限制。请求带应用 User-Agent，跟随同主机 HTTPS 重定向；不把临时下载 URL 写死。更新前检查签名、通道、递增版本、大小、SHA-256、ZIP 解压路径与包内版本，失败尝试恢复备份，只有回滚也失败时保留临时备份并提示路径。更新器不删除目录里的其他用户文件，不支持断电期间的事务恢复。
+- Android 下载前验证 RSA 元数据签名，下载后核对 SHA-256、大小、包名、版本和应用签名；首次安装来源授权及最终安装由用户在系统界面确认。
+- 新 Windows 通过原生插件获取信息与下载，保留 User-Agent、HTTPS 和缓存规避；下载源限制在既有云盘，官方更新器验证签名后关闭应用、运行安装器并自动重启。用户数据与程序安装文件分开，升级不依赖外部浏览器或当前文件夹。
+- 旧 Windows HTML 版首次转为桌面程序需运行新 Setup.exe。旧浏览器数据不能直接被新 WebView2 读取，使用迁移 ZIP 在原文件地址导出，再导入桌面版；步骤见 [Windows 说明](../apps/windows/README.md)。
 
-Android 采用同一协议验证元数据及下载包；另外检查 APK 包名、版本与已安装应用的签名，再用系统 PackageInstaller 提交安装。WebView 仍然只访问本地资源。测试 APK 沿用既有开发证书；正式分发应使用长期维护的正式签名及迁移方案。
+## 发布 Windows 桌面版
 
-元数据外层为 Base64 `payload`、`signature`；签名算法 RSA PKCS#1 v1.5 / SHA-256。payload 是 UTF-8 JSON：
-
-```json
-{
-  "schema": 1,
-  "channel": "beta",
-  "versionCode": 7,
-  "versionName": "4.2.0-beta.2",
-  "notes": "更新说明",
-  "android": {"file": "GermanWords-Android-4.2.0-beta.2.apk", "size": 123, "sha256": "64位小写十六进制"},
-  "windows": {"file": "GermanWords-Windows-4.2.0-beta.2.zip", "size": 123, "sha256": "64位小写十六进制"}
-}
-```
-
-云盘可能缓存内容，客户端对元数据使用 no-cache 和时间参数；上传工具对每个文件读回校验。云盘的校外/移动网络可达性、长期限流与分享有效期仍需持续观察，不能据一次测试保证长期可用。保留 GitHub Releases 作为独立下载入口。
-
-## 维护发布
-
-1. 修改 `shared/app-config.json` 版本，确保 versionCode 递增。构建 Release APK 并以与既有安装相同的证书签名。
-2. 用 `python tools/publish-update.py package --apk <已签名APK>` 生成两端包，默认位于忽略的 `output/releases/update-test/`。该工具不代签 APK，输入必须是刚构建的对应版本。
-3. 维护机器安装 `python -m pip install -r tools/requirements-updates.txt`，它仅用于发布时签名，客户端不依赖它。保存 RSA 私钥到仓库外并安全备份。本次私钥存于维护者用户目录 `.germanwords/update-signing-key.pem`；上传链接也属于维护凭据，不写入仓库或应用。
-4. 执行以下命令，上传两个包、逐一从下载入口读回比对，最后上传签名元数据。可用 `--extra <文件...>` 同时上传起始测试包。
+构建前确保版本递增，并把 Tauri 签名私钥保存在仓库外。本机私钥为维护者用户目录 `.germanwords/tauri-update.key`；公钥随客户端分发。运行：
 
 ```powershell
-python tools/publish-update.py publish --key <私钥PEM路径> --upload-url <云盘上传链接> --notes "更新说明"
+$env:TAURI_SIGNING_PRIVATE_KEY = '<私钥路径>'
+pnpm --dir apps/windows build
+python tools/publish-update.py publish-windows --installer "x86_64=<生成的setup.exe路径>" --upload-url <上传链接> --notes "更新说明"
 ```
 
-首次发布前，应从安装 beta.1 到收到 beta.2 更新完整走一遍。版本化包一旦对外分发就不要替换；更新继续递增版本，固定覆盖的文件只有 `update-beta.json`。测试准备期间的修正已重新打包校验，正式使用的包以验证记录中的 SHA-256 为准。
+安装包旁必须保留构建生成的同名 `.sig`；发布器把签名内容写入 Tauri 元数据，支持重复传入 `--installer "aarch64=<路径>"`。同一版本应一次列出全部发布架构，避免覆盖元数据时漏掉其他架构。当前实际只发布并验证 x64。
 
-公钥随应用分发，私钥用于签署整个更新说明和包校验值。丢失私钥后需要手动分发带新公钥的客户端；上传链接泄露可导致文件被替换或删除，应及时更换。签名能拒绝伪造包，但不能防止云盘不可用或旧元数据重放；客户端不会降级已安装版本。
+工具先上传所有包并从公开下载入口读回校验，最后覆盖元数据；版本化包若已存在但内容不同则拒绝覆盖。`--extra` 可上传起始测试包。不存在文件时云盘可能返回 HTML，因此上传器通过公开目录列表判断重名，不把 HTML 当成已发布安装包。
 
-回归命令和结果见 [测试说明](../tests/README.md) 与 [本轮验证](../artifacts/cloud-update-verification.md)。
+## Android 与旧 Windows 兼容发布
+
+保留原 RSA 工具和公钥，不影响已安装测试客户端：构建并签署对应版本的 Android Release APK，执行 `python tools/publish-update.py package --apk <已签名APK>`，再执行原 `publish --key <RSA私钥> --upload-url <上传链接> --notes "说明"`。
+
+该 package 命令生成 APK 和供旧 Windows 更新器使用的兼容 ZIP；ZIP 使用原 `De_words_helper.html` 文件名与公共配置，不包含桌面安装器或重复的更新实现。覆盖更新会保留用户原有 `.cmd` / `.ps1`；它不是面向新用户的 Windows 桌面安装包。Android 输入 APK 必须是同版本、与现有应用同签名的 Release 构建。RSA 签名依赖 `tools/requirements-updates.txt`，仅维护端需要。
+
+## 签名与边界
+
+Tauri 更新签名、Windows Authenticode 签名、Android APK 签名和 RSA 元数据签名各有用途，不能互相替代。当前桌面测试包尚未配置正式 Authenticode 签名；Android beta 沿用历史开发证书。丢失更新私钥后，需要手动分发带新公钥的客户端；上传链接或私钥泄露应更换。更新器按元数据版本仅提示更高版本，签名本身不保证云盘长期可用。
+
+保持 GitHub Releases 作为独立发布记录和原始包来源。WebView2 缺失、ARM64、长期云盘限流和所有旧系统的适配范围以实际验证记录为准，不能据一次更新测试作保证。
+
+历史原型验证见 [云盘原型记录](../artifacts/cloud-update-verification.md)，本轮见 [桌面验证](../artifacts/windows-desktop-verification.md)。

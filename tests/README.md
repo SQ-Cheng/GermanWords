@@ -38,4 +38,6 @@ pnpm --dir tests test:browser
 
 架构审查补充：共享星标存储覆盖旧 JSON、外部恢复、损坏数据、存储失败的内存回退；Windows 还验证卡片和列表隐藏答案、音频取消、逐行揭晓/星标/键盘以及词库替换清空旧状态。
 
-Windows 更新器回归：`powershell.exe -NoProfile -File tests/windows-updates.ps1`。直接加载生产函数，覆盖验签、错误通道/路径/校验值、ZIP 越界、版本不一致、失败回滚、保留用户文件与旧更新请求；不连接网络、不操作用户安装目录。真实云盘升级记录见 `artifacts/cloud-update-verification.md`。
+Windows 桌面迁移后，先运行 `python tools/build-windows.py`，浏览器回归同时覆盖源码与生成前端。`node tests/legacy-migration.cjs` 验证在原 file:// 地址替换迁移页后保留并导出旧星标/主题/语速。`tests/desktop.cjs` 针对真实 Tauri WebView2 检查内置词库、备份校验、重载保持、主题和 480–1120px 响应布局；按 `apps/windows/README.md` 启动隔离测试实例后执行，测试专用调试端口不进入正式运行方式。
+
+旧 PowerShell 更新器已随架构迁移移除，不再维护其测试；历史验证记录保留。当前安装器、真实云盘升级和验证边界见 `artifacts/windows-desktop-verification.md`。

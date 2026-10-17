@@ -2,9 +2,9 @@
 
 Android 与 Windows 离线版共用 [GermanWords 仓库](https://github.com/SQ-Cheng/GermanWords)，两个客户端分别维护界面与平台功能。项目根文件夹为 `GermanWords/`；Android Studio 仍打开其中的 `apps/android/`。
 
-本开发分支：**Android / Windows 4.2.0-beta.2**（Android versionCode 7），用于云盘更新测试；起始测试包为 4.2.0-beta.1（versionCode 6）。GitHub 已发布版本仍为 4.1.0-beta.1。
+本开发分支：**4.2.0-beta.3**（Android 源码 versionCode 8），Windows 已迁移为 Tauri 2 / WebView2 桌面程序。GitHub 已发布版本仍为 4.1.0-beta.1，云盘 Android 与旧 Windows 测试版仍为 4.2.0-beta.2。
 
-[云盘测试包](https://cloud.tsinghua.edu.cn/d/361a8eccb1624c65ae26/)：先安装或解压 beta.1，再按提示升级到 beta.2。Windows 请双击 `GermanWords.cmd` 启动，手动检查用 `Check updates.cmd`；直接打开 HTML 仍可离线学习，但不会检查更新。Android 从启动或侧栏「检查更新」进入。安装需要确认，详见 [更新与维护](docs/updates.md)。
+Windows 桌面安装包与测试更新见 [清华云盘](https://cloud.tsinghua.edu.cn/d/361a8eccb1624c65ae26/)；从桌面 beta.2 安装包起步，可测试升级到 beta.3。首次从旧 HTML 版迁移需运行新安装包，并导入旧星标/设置。详见 [Windows 开发与迁移](apps/windows/README.md) 和 [更新维护](docs/updates.md)。
 
 目前开发人员：SQ-Cheng (Android), freshfish6666 (Windows).
 
@@ -15,7 +15,7 @@ Android 与 Windows 离线版共用 [GermanWords 仓库](https://github.com/SQ-C
 | 目录 | 内容 |
 | --- | --- |
 | `apps/android/` | Android Studio / Gradle 项目，Java 外壳与 WebView 界面 |
-| `apps/windows/` | Windows 浏览器离线版，双击 `GermanWords.cmd` 启动并检查更新，HTML 可直接离线打开 |
+| `apps/windows/` | Tauri 桌面宿主与唯一一套 Windows 前端，按用户安装的 NSIS 安装包 |
 | `shared/words/` | 两端共用的 Excel 词库与录音，唯一资源源目录 |
 | `shared/parser.js` | 两端共用的 XLSX 读取、表头识别与词条解析 |
 | `shared/theme.js`、`shared/theme.css` | 两端共用的主题偏好与昼夜配色 |
@@ -28,7 +28,7 @@ Android 与 Windows 离线版共用 [GermanWords 仓库](https://github.com/SQ-C
 | `output/pdf/` | Android 使用说明 |
 | `artifacts/verification.md` | 历史设备验证记录 |
 
-两端均内置 8 份词表、460 个词条及对应录音，安装或解压后可离线学习。Android 开发与使用见 [Android 说明](apps/android/README.md)，更新记录见 [CHANGELOG](apps/android/CHANGELOG.md)。Windows 版用新版 Edge 或 Chrome 打开；直接打开源码页面时，点击「导入文件夹」，选择 `shared/words/`。
+两端均内置 8 份词表、460 个词条及对应录音，安装或解压后可离线学习。Android 开发与使用见 [Android 说明](apps/android/README.md)，更新记录见 [CHANGELOG](apps/android/CHANGELOG.md)。Windows 桌面版首次启动即加载内置词库。前端源码仍可用新版 Edge / Chrome 打开做开发检查，此时手动导入 `shared/words/`。
 
 两端默认跟随系统昼夜模式，可在侧栏的「主题」设置中选择「跟随系统／昼间／夜间」，选择自动保存。Android 支持单屏卡片、滑动翻页和拖动底部进度条，保留原有学习模式名称；圆形操作按钮在大字号下保持圆形。
 
@@ -40,15 +40,18 @@ Android 与 Windows 离线版共用 [GermanWords 仓库](https://github.com/SQ-C
 
 全部 GitHub issues、实现方案与验证记录见 [本轮 issue 记录](docs/issues-2026-10-17.md)。课本例句继续暂缓；软件内更新在当前分支中测试。
 
-Beta 发布页提供可安装 APK、Windows 离线 ZIP 和 SHA256 校验文件。Windows 解压后双击 `GermanWords.cmd`，再导入包内的 `words/`。Android beta 使用与历史测试包相同的开发签名，便于覆盖升级；发布构建关闭调试，不包含测试组件。正式发布前应配置独立发布签名。PDF 为早期 Android 版说明，新功能以本 README 为准。
+Beta 发布页提供可安装 APK、Windows 离线 ZIP 和 SHA256 校验文件。该历史版本的 Windows ZIP 解压后启动；新桌面版使用 Setup.exe 安装。Android beta 使用与历史测试包相同的开发签名，便于覆盖升级；发布构建关闭调试，不包含测试组件。正式发布前应配置独立发布签名。PDF 为早期 Android 版说明，新功能以本 README 为准。
 
-Windows 离线发布包：
+Windows 桌面开发和打包：
 
 ```powershell
-python tools/build-windows.py
+pnpm --dir apps/windows install --frozen-lockfile
+pnpm --dir apps/windows dev
+# 配置仓库外的 TAURI_SIGNING_PRIVATE_KEY 后：
+pnpm --dir apps/windows build
 ```
 
-将生成的 `output/windows/` 整个文件夹交给用户，保留 HTML、客户端与公共脚本/样式、`words/`。双击其中的 `GermanWords.cmd`，导入同目录的 `words/` 即可使用；用户无需 Python，更新器使用 Windows 自带 PowerShell 5.1。生成目录不入库，每次构建会重新生成。Windows 保留原有学习界面与功能，不增加 Android 的备份和位置恢复功能。
+需要 Rust MSVC、Visual Studio C++ 工具链及系统 WebView2。用户无需 Python、Node 或 Rust；这些仅是开发依赖。安装包缺少 WebView2 时引导安装运行时。资源准备仍使用 `python tools/build-windows.py`，生成 `output/windows/web/` 和旧版迁移 ZIP，不提交构建产物。
 
 从仓库根目录验证公共解析器和 Android 学习引擎（Node.js 22 或更高版本）：
 
@@ -72,7 +75,7 @@ cd apps/android
 
 Gradle 自动打包公共脚本、样式和 `shared/words/` 并生成资源索引，更新公共文件无需手动复制。Android 生成资源位于 `apps/android/app/build/generated/sharedAssets/`。
 
-公共解析器只处理文件与数据，不依赖页面或 Android。浏览器默认使用 `DecompressionStream` 解压；Android 在 `mobile.js` 中提供原生解压函数，通过 `WordParser.read(file, inflateRaw)` 传入。两端界面、音频播放、文件导入与学习状态保持各自实现。Windows 发布脚本仅复制公共文件并调整脚本路径。
+公共解析器只处理文件与数据，不依赖页面或 Android。浏览器默认使用 `DecompressionStream` 解压；Android 在 `mobile.js` 中提供原生解压函数，通过 `WordParser.read(file, inflateRaw)` 传入。两端界面、音频播放、文件导入与学习状态保持各自实现。Windows 构建脚本复制公共文件与资源并生成索引，Tauri 承载本地学习页面；原生宿主只开放检查更新和安装更新两个命令。
 
 `vocabulary.js` 组合公共解析器读取所选词表，保留单单元的旧词条 ID，只为混合词条附加单元标识；共享层不访问 Android。语速在浏览器使用 `Audio.playbackRate`，Android 宿主使用 [MediaPlayer PlaybackParams](https://developer.android.com/reference/android/media/MediaPlayer#setPlaybackParams(android.media.PlaybackParams))，不增加音频框架或网络依赖。
 
@@ -83,3 +86,5 @@ Gradle 自动打包公共脚本、样式和 `shared/words/` 并生成资源索�
 两个平台在同一 `main` 上开发，通过功能分支修改；构建产物与本机 SDK 路径不入库。
 
 代码层级和维护边界见 [架构说明](docs/architecture.md)；本次 Beta 的检查范围见 [4.1.0 合并与发布验证记录](artifacts/4.1.0-beta.1-verification.md)。
+
+Windows 迁移的两轮架构审查见 [迁移设计](docs/windows-desktop-migration.md)，安装与云盘升级验证见 [桌面验证记录](artifacts/windows-desktop-verification.md)。
