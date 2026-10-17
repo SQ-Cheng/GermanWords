@@ -443,9 +443,11 @@
 
       function processData(words, saved) {
         currentFileWords = words;
+        const marks = new Map();
         currentFileWords.forEach(word => {
           word.sourceBook = word.sourceBook || currentFileName;
-          word.marked = store.marks(word.sourceBook).includes(word.german);
+          if (!marks.has(word.sourceBook)) marks.set(word.sourceBook, new Set(store.marks(word.sourceBook)));
+          word.marked = marks.get(word.sourceBook).has(word.german);
         });
         orderedWords = currentFileWords.slice();
         isShuffled = !!(saved && saved.shuffled);

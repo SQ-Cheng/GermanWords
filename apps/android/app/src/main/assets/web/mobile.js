@@ -78,7 +78,7 @@ function saveStudy() {
   preferences.autoPlay = autoPlayEnabled;
   if (currentFileName && currentFileWords.length) {
     preferences.books[currentFileName] = {
-      word: displayWords[currentIndex] && displayWords[currentIndex].id,
+      word: displayWords[currentIndex] ? displayWords[currentIndex].id : (preferences.books[currentFileName] || {}).word,
       shuffled: isShuffled,
       order: isShuffled ? orderedWords.map(w => w.id) : undefined
     };

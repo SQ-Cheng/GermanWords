@@ -1149,9 +1149,11 @@
         isShuffled = false;
         document.getElementById('btnShuffle').textContent = '乱序';
         document.getElementById('btnShuffle').classList.remove('active');
+        const marks = new Map();
         currentFileWords.forEach(word => {
           word.sourceBook = word.sourceBook || currentFileName;
-          word.marked = store.marks(word.sourceBook).includes(word.german);
+          if (!marks.has(word.sourceBook)) marks.set(word.sourceBook, new Set(store.marks(word.sourceBook)));
+          word.marked = marks.get(word.sourceBook).has(word.german);
         });
         document.getElementById("emptyState").style.display = "none";
         currentIndex = 0;
