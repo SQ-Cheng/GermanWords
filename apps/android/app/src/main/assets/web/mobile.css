@@ -63,6 +63,7 @@ button:disabled{opacity:.3;cursor:default}button:active:not(:disabled){transform
 .file-item{padding:14px;border-radius:12px;margin-bottom:5px;line-height:1.6;font-size:14px;overflow-wrap:anywhere;cursor:pointer;border:1px solid transparent}
 .file-item.active{background:var(--surface-soft);border-color:var(--border);color:var(--primary-color);font-weight:600}
 .sidebar-status{color:var(--muted);font-size:12px;padding:12px 0}
+.sidebar-status:empty{display:none}
 .library-footer{border-top:1px solid var(--border);padding-top:10px;flex-shrink:0}
 .library-footer button{font-size:14px;padding-left:0;color:var(--primary-color)}
 .library-footer p{font-size:12px;color:var(--muted);line-height:1.7;margin:6px 0}
