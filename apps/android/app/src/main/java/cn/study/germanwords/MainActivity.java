@@ -156,7 +156,8 @@ public class MainActivity extends Activity {
             float valid = rate==0.75 || rate==1 || rate==1.25 || rate==1.5 ? (float)rate : 1f;
             runOnUiThread(() -> {
                 playbackRate=valid;
-                if(player!=null && audioPrepared && player.isPlaying()) applyPlaybackRate(player);
+                try { if(player!=null && audioPrepared && player.isPlaying()) applyPlaybackRate(player); }
+                catch(IllegalStateException ignored) { /* An asynchronous decoder error may have completed first. */ }
             });
         }
         @JavascriptInterface public boolean isSystemDark() { return MainActivity.this.isSystemDark(); }

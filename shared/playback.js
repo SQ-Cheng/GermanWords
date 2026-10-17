@@ -13,9 +13,5 @@ const Playback = (function () {
     try { localStorage.setItem(key, String(rate)); } catch (_) {}
     return rate;
   }
-  document.addEventListener('DOMContentLoaded', () => {
-    const select = document.getElementById('playbackRate');
-    if (select) select.value = String(rate);
-  });
   return {getRate: () => rate, setRate};
 })();

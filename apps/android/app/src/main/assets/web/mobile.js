@@ -8,6 +8,7 @@ function syncSystemTheme() {
 syncSystemTheme();
 function changePlaybackRate(value) {
   const rate = Playback.setRate(value);
+  document.getElementById('playbackRate').value = String(rate);
   if (currentAudio) currentAudio.playbackRate = rate;
   if (window.Android) Android.setPlaybackRate(rate);
 }
@@ -21,6 +22,7 @@ function normalizePreferences(value) {
   const result = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const books = result.books && typeof result.books === 'object' && !Array.isArray(result.books) ? result.books : {};
   result.books = Object.assign(Object.create(null), books);
+  result.files = Array.isArray(result.files) ? result.files.filter(name => typeof name === 'string') : [];
   return result;
 }
 preferences = normalizePreferences(preferences);
