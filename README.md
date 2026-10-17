@@ -17,6 +17,8 @@ Android 与 Windows 离线版共用 [GermanWords 仓库](https://github.com/SQ-C
 | `shared/words/` | 两端共用的 Excel 词库与录音，唯一资源源目录 |
 | `shared/parser.js` | 两端共用的 XLSX 读取、表头识别与词条解析 |
 | `shared/theme.js`、`shared/theme.css` | 两端共用的主题偏好与昼夜配色 |
+| `shared/playback.js` | 语速偏好保存与有效值校验；各端适配现有播放器 |
+| `shared/vocabulary.js` | 搜索匹配、多单元读取与词条来源标识 |
 | `tools/` | 构建工具 |
 | `tests/` | 解析器、学习引擎测试及真机测试入口 |
 | `output/pdf/` | Android 使用说明 |
@@ -25,6 +27,14 @@ Android 与 Windows 离线版共用 [GermanWords 仓库](https://github.com/SQ-C
 两端均内置 8 份词表、460 个词条及对应录音，安装或解压后可离线学习。Android 开发与使用见 [Android 说明](apps/android/README.md)，更新记录见 [CHANGELOG](apps/android/CHANGELOG.md)。Windows 版用新版 Edge 或 Chrome 打开；直接打开源码页面时，点击「导入文件夹」，选择 `shared/words/`。
 
 两端默认跟随系统昼夜模式，可在侧栏的「主题」设置中选择「跟随系统／昼间／夜间」，选择自动保存。Android 支持单屏卡片、滑动翻页和拖动底部进度条，保留原有学习模式名称；圆形操作按钮在大字号下保持圆形。
+
+开发分支 `codex/issue-improvements` 新增以下功能，尚未合并或发布到上方 Beta 包：
+
+- 在词库勾选至少两个单元，点击「混合学习」，再用「乱序」跨单元学习；再次点击可恢复顺序。直接点单元名称返回单单元。星标按原单元保存，Android 可恢复混合范围、位置与乱序顺序。
+- 搜索当前学习范围中的德语或中文，可与星标筛选和乱序组合。Android 在词库中输入后点「查看」；Windows 在顶部输入。搜索不区分大小写，支持变音符号与 ß/ss；清空后恢复当前范围，搜索词不持久化。
+- 两端侧栏可选 0.75×、1×、1.25×、1.5× 语速，自动保存并应用于当前及后续录音。Windows 普通模式点击卡片即可重播，自测模式仍点击揭晓答案。
+
+全部 GitHub issues、实现方案与验证记录见 [本轮 issue 记录](docs/issues-2026-10-17.md)。课本例句与软件内更新按要求暂缓。
 
 Beta 发布页提供可安装 APK、Windows 离线 ZIP 和 SHA256 校验文件。Windows 解压后双击 HTML，再导入包内的 `words/`。Android beta 使用与历史测试包相同的开发签名，便于覆盖升级；发布构建关闭调试，不包含测试组件。正式发布前应配置独立发布签名。PDF 为早期 Android 版说明，新功能以本 README 为准。
 
@@ -42,6 +52,8 @@ python tools/build-windows.py
 node tests/test-parser.mjs
 node tests/test-engine.mjs
 node tests/test-theme.mjs
+node tests/test-playback.mjs
+node tests/test-vocabulary.mjs
 ```
 
 Android 构建：
@@ -56,6 +68,8 @@ cd apps/android
 Gradle 自动打包公共脚本、样式和 `shared/words/` 并生成资源索引，更新公共文件无需手动复制。Android 生成资源位于 `apps/android/app/build/generated/sharedAssets/`。
 
 公共解析器只处理文件与数据，不依赖页面或 Android。浏览器默认使用 `DecompressionStream` 解压；Android 在 `mobile.js` 中提供原生解压函数，通过 `WordParser.read(file, inflateRaw)` 传入。两端界面、音频播放、文件导入与学习状态保持各自实现。Windows 发布脚本仅复制公共文件并调整脚本路径。
+
+`vocabulary.js` 组合公共解析器读取所选词表，保留单单元的旧词条 ID，只为混合词条附加单元标识；共享层不访问 Android。语速在浏览器使用 `Audio.playbackRate`，Android 宿主使用 [MediaPlayer PlaybackParams](https://developer.android.com/reference/android/media/MediaPlayer#setPlaybackParams(android.media.PlaybackParams))，不增加音频框架或网络依赖。
 
 本次整理的验证范围见 [共享组件验证记录](artifacts/shared-components-verification.md)。
 

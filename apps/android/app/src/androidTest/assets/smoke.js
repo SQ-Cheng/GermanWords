@@ -37,6 +37,11 @@
     assert(!displayWords.length && document.getElementById('studyProgress').disabled,'empty search state');
     searchWords('');
     assert(displayWords.length===460 && orderedWords.map(w=>w.id).join('|')===mixedOrder,'search preserves shuffle');
+    const choices=Array.from(document.querySelectorAll('#fileList input'));
+    choices.forEach(input=>input.checked=false);updateMixSelection();
+    choices[0].click();assert(document.getElementById('mixBooks').disabled,'mix needs two units');
+    choices[1].click();assert(!document.getElementById('mixBooks').disabled,'two checked units can mix');
+    await loadSelectedBooks();assert(currentBookNames.length===2 && currentFileWords.length===119,'checkbox mix selection');
     await loadFile(names[0]);
     localStorage.setItem(STORAGE_KEY,'{}');
     currentFileWords.forEach(w=>w.marked=false);
@@ -101,7 +106,7 @@
     processData([example]);
     assert(document.getElementById('cardGerman').textContent==='<b>literal</b>','literal imported text');
     assert(document.getElementById('cardExample').innerText==='A & B','examples');
-    report='PASS: 460 words / 460 matching recordings; three modes in cards and lists, answer hiding/reveal, reversible shuffle, filtered/resumed order, stars, empty filter, navigation, compact heading, back, literal text and portrait layout.';
+    report='PASS: 460 words / 460 matching recordings; mixed checkbox selection, unique IDs, isolated source-book stars, mixed progress/order restore, search, empty state; three modes, cards/lists, shuffle, navigation, heading, back and literal text.';
   } catch(e) { report='FAIL: '+e.stack; }
   finally {
     pauseStudyAudio();

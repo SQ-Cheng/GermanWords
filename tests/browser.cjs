@@ -121,6 +121,21 @@ process.chdir(path.resolve(__dirname,'..'));
         return {count,ids,audio,isolated,stored,preserved,original,star};
       });
       assert.deepEqual(mixed,{count:460,ids:460,audio:460,isolated:true,stored:true,preserved:true,original:true,star:true});
+      assert.equal(await page.evaluate(async()=>{
+        const names=Object.keys(fileMap);
+        const previous=currentFileName;
+        fileMap['broken.xlsx']={name:'broken.xlsx',arrayBuffer:async()=>new ArrayBuffer(0)};
+        await loadBooks([names[0],'broken.xlsx']);
+        const retained=currentFileName===previous;
+        let finishSlow;
+        fileMap['slow.xlsx']={name:'slow.xlsx',arrayBuffer:()=>new Promise(resolve=>finishSlow=resolve)};
+        const pending=loadFile('slow.xlsx');
+        await loadFile(names[1]);
+        finishSlow(await fileMap[names[0]].arrayBuffer());
+        await pending;
+        delete fileMap['broken.xlsx'];delete fileMap['slow.xlsx'];
+        return retained && currentFileName===names[1];
+      }),true,'failed or obsolete mixed-book reads preserve the successful selection');
       assert.equal(await page.evaluate(()=>{
         const files=['left','right'].map(root=>{
           const file=new File(['fixture'],'lernen.mp3');
@@ -132,7 +147,7 @@ process.chdir(path.resolve(__dirname,'..'));
         return ['left','right'].every((root,index)=>findAudioFile({german:'lernen',pronounce:'words/einheit1/lernen.mp3',sourceRoot:'import/'+root})===files[index]);
       }),true,'same-name imported recordings stay within the matching source folder');
       assert.deepEqual(errors,[]);
-      console.log(`PASS: ${html}: local scripts, folder import, 460 words/audio matches, card self-test, stars, list, keyboard, audio playback and auto/light/dark themes with persistence`);
+      console.log(`PASS: ${html}: 460 words/audio, checkbox mixing, unique IDs, source-aware stars/audio, reversible shuffle/search, normal card replay, live/persisted playback speed, self-test, list, keyboard and themes`);
       await page.screenshot({path:'artifacts/windows-dark.png'});
       await page.close();
     }

@@ -2,7 +2,7 @@
   "name": "germanwords-tests",
   "private": true,
   "scripts": {
-    "test": "node test-parser.mjs && node test-engine.mjs && node test-theme.mjs",
+    "test": "node test-parser.mjs && node test-engine.mjs && node test-theme.mjs && node test-playback.mjs && node test-vocabulary.mjs",
     "test:browser": "node browser.cjs"
   },
   "devDependencies": {

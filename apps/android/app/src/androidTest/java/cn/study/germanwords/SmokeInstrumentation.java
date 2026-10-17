@@ -88,6 +88,7 @@ public class SmokeInstrumentation extends Instrumentation {
                 if(!"true".equals(evaluate("(()=>{const card=document.querySelector('.card-body');return card.scrollHeight<=card.clientHeight+1})()")))throw new IOException("Built-in card requires scrolling at text zoom "+scale);
                 if(!"true".equals(evaluate("[document.querySelector('.star-mark'),document.getElementById('pronounceIcon')].every(el=>{const r=el.getBoundingClientRect();return Math.abs(r.width-r.height)<=1 && r.width>=44})")))throw new IOException("Card buttons must remain circular at text zoom "+scale);
                 evaluate("document.getElementById('libraryButton').scrollIntoView({block:'nearest'});openLibrary()");
+                if(scale==2f)screenshot("qa-library-200.png");
                 if(!"true".equals(evaluate("libraryOpen && document.getElementById('library').scrollWidth<=innerWidth+1")))throw new IOException("Drawer at text zoom "+scale);
                 evaluate("closeLibrary();document.getElementById('lessonTitle').scrollIntoView({block:'start'})");
                 SystemClock.sleep(100);
@@ -172,7 +173,7 @@ public class SmokeInstrumentation extends Instrumentation {
             if(!"true".equals(evaluate("innerWidth>innerHeight && document.documentElement.scrollWidth<=innerWidth+1 && document.querySelector('.study-footer').getBoundingClientRect().bottom<=innerHeight+1")))throw new IOException("Landscape layout");
             runOnMainSync(() -> activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED));
             android.util.Log.d("GermanWordsTest","Landscape verified");
-            results.putString("stream", "\n"+result+"\nPASS: physical card swipe and progress drag, single-screen card/footer and circular controls at 100/130/150/200%, 320dp layout, auto/light/dark themes and native system bars, self-test lists, native audio, SAF import and landscape.\n");
+            results.putString("stream", "\n"+result+"\nPASS: physical swipe/progress drag, 100/130/150/200% single-screen layout/circular controls, 320dp, themes/system bars, native audio with live 0.75x/1.25x speed, SAF import and landscape.\n");
             resultCode=Activity.RESULT_OK;
         } catch(Exception e) {
             results.putString("stream", "\nFAIL: "+e+"\n");

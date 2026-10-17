@@ -159,4 +159,4 @@ context.importedAudio={name:'lernen.mp3',root:'import-test',webkitRelativePath:'
 vm.runInContext('buildAudioIndex([...files,importedAudio])',context);
 assert.equal(vm.runInContext('findAudioFile({german:"lernen",pronounce:"words/einheit1/lernen.mp3",sourceRoot:"import-test"}).url',context),context.importedAudio.url);
 assert.equal(vm.runInContext('findAudioFile({german:"lernen",pronounce:"words/einheit1/lernen.mp3",sourceRoot:"built-in"}).url',context),'/assets/web/words/einheit1/lernen.mp3');
-console.log(`PASS: ${total} words, ${audio} recordings; reversible shuffle, filtered/resumed order, list self-tests, audio timers, failed/obsolete loads, preferences, native inflate, navigation, marks and column aliases.`);
+console.log(`PASS: ${total} words, ${audio} recordings; mixed unique IDs/source-book stars, mixed progress/order restore, search and empty results; shuffle, lists, audio timers, failed/obsolete reads and native inflation.`);
