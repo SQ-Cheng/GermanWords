@@ -962,6 +962,7 @@
       }
 
       function playPronounce(word) {
+        if (autoPlayTimer) { clearTimeout(autoPlayTimer); autoPlayTimer = null; }
         const src = audioSource(word);
         if (!src) {
           notify("「" + word.german + "」没有找到对应的音频文件", "warn");
@@ -1174,7 +1175,11 @@
       }
 
       function toggleReveal() {
-        if (currentMode === "normal") return;
+        if (!displayWords.length) return;
+        if (currentMode === "normal") {
+          playPronounce(displayWords[currentIndex]);
+          return;
+        }
         isRevealed = !isRevealed;
         renderCard(); // 需要重新渲染卡片以更新颜色
       }

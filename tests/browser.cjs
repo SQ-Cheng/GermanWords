@@ -52,6 +52,18 @@ process.chdir(path.resolve(__dirname,'..'));
       assert.equal(await page.locator('#germanArea').evaluate(el=>el.classList.contains('hidden-content')), true);
       await page.locator('#cardView').click();
       assert.equal(await page.locator('#germanArea').evaluate(el=>el.classList.contains('hidden-content')), false);
+      await page.evaluate(() => {
+        document.getElementById('modeSelect').value='normal';
+        changeMode();
+        window.manualPlays=0;
+        window.originalPlay=playPronounce;
+        playPronounce=word=>{window.manualPlays++;window.originalPlay(word);};
+      });
+      await page.locator('#cardView').click();
+      await page.waitForTimeout(200);
+      assert.equal(await page.evaluate(()=>window.manualPlays),1,'normal card click replays once and cancels pending automatic audio');
+      assert.equal(await page.evaluate(()=>!!currentAudio && !currentAudio.paused),true);
+      await page.evaluate(()=>{playPronounce=window.originalPlay;});
       await page.evaluate(() => { currentIndex=0; toggleCurrentMark(); toggleFilter(); });
       assert.equal(await page.evaluate(()=>displayWords.length),1);
       await page.evaluate(() => { toggleFilter(); switchView('list'); });
