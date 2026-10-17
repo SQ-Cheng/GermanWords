@@ -11,7 +11,9 @@ pnpm --dir apps/windows install --frozen-lockfile
 pnpm --dir apps/windows dev
 ```
 
-构建配置中的 `0.0.0` 仅为占位符；以上入口先执行 `tools/build-windows.py`，从 `shared/app-config.json` 生成忽略的 `tauri.generated.json`，再传给 Tauri，实际应用与安装器版本始终来自公共配置。不要绕过该入口直接运行 `cargo run` 或裸 `tauri build`。
+开发模式与正式包使用同一本地资源协议。Tauri 监听 `frontend/` 与 `shared/`；修改后由 Rust 构建钩子重新准备资源并重启窗口，偏好仍保存在原 WebView2 profile。无需额外开发服务器或手动复制生成目录。
+
+构建配置中的 `0.0.0` 仅为占位符；以上入口先执行 `tools/build-windows.py`，从 `shared/app-config.json` 生成忽略的 `tauri.generated.json`，再传给 Tauri。构建钩子也会准备资源，确保源码修改进入原生包。版本配置修改后重新运行开发入口；不要绕过入口直接运行 `cargo run` 或裸 `tauri build`。
 
 本机 Cargo / Rustup 位于 E 盘；本项目忽略的 `src-tauri/.cargo/config.toml` 将 target-dir 指向 `E:\Rust\targets\GermanWords`。其他电脑可使用默认 target 目录或自己的本机配置，无需照搬路径。
 
@@ -44,6 +46,8 @@ python tools/publish-update.py publish-windows --installer "x86_64=<安装包路
 ```
 
 可重复传入 `--installer "aarch64=<安装包路径>"`；同次发布需列出全部已支持架构。每个输入旁必须有 Tauri 生成的同名 `.sig`。签名私钥、上传链接不进入仓库。此命令只更新独立的 Windows 元数据文件，不修改 Android / 旧 Windows 的 RSA 更新信息。
+
+发布前需安装[官方 Minisign](https://jedisct1.github.io/minisign/)，将其加入 PATH 或设置 `MINISIGN` 为可执行文件路径。发布器用它验证安装包与可信注释，再核对注释绑定的版本和架构；旧包重命名、签名不匹配或架构选择错误都会在上传前失败。此工具仅供维护发布，不打包进应用。
 
 安装包的 Tauri 更新签名不能替代 Windows Authenticode 代码签名；当前开发包尚未配置正式代码签名，不承诺消除 SmartScreen 提示。
 

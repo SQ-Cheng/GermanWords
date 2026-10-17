@@ -25,5 +25,5 @@ const AppTheme = (function () {
   system.addEventListener('change', apply);
   document.addEventListener('DOMContentLoaded', apply);
   apply();
-  return {setMode, setSystemDark};
+  return {getMode: () => mode, setMode, setSystemDark};
 })();

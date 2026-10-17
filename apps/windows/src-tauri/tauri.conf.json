@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "identifier": "cn.study.germanwords",
   "build": {
-    "frontendDist": "../../../output/windows/web"
+    "frontendDist": "../../../output/windows/web",
+    "additionalWatchFolders": ["../frontend", "../../../shared"]
   },
   "app": {
     "withGlobalTauri": true,

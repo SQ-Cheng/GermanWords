@@ -21,7 +21,7 @@ const context=vm.createContext({console,TextDecoder,Uint8Array,DataView,Blob,Res
   localStorage,location:{href:'https://appassets.androidplatform.net/assets/web/index.html'},
   setTimeout:fn=>{timers.set(++timerId,fn);return timerId;},clearTimeout:id=>timers.delete(id),btoa:s=>Buffer.from(s,'binary').toString('base64'),atob:s=>Buffer.from(s,'base64').toString('binary'),
   Android:{inflate:s=>inflateRawSync(Buffer.from(s,'base64')).toString('base64'),play(){},stopAudio(){},isSystemDark:()=>false,setDarkMode(){},setPlaybackRate(){}},
-  AppTheme:{setSystemDark(){}},
+  AppTheme:{mode:'auto', getMode(){return this.mode;}, setMode(value){this.mode=value;}, setSystemDark(){}},
   window:{localStorage,Android:true}
 });
 vm.runInContext(fs.readFileSync(path.join(root,'shared/parser.js'),'utf8'),context);
@@ -161,4 +161,19 @@ context.importedAudio={name:'lernen.mp3',root:'import-test',webkitRelativePath:'
 vm.runInContext('buildAudioIndex([...files,importedAudio])',context);
 assert.equal(vm.runInContext('findAudioFile({german:"lernen",pronounce:"words/einheit1/lernen.mp3",sourceRoot:"import-test"}).url',context),context.importedAudio.url);
 assert.equal(vm.runInContext('findAudioFile({german:"lernen",pronounce:"words/einheit1/lernen.mp3",sourceRoot:"built-in"}).url',context),'/assets/web/words/einheit1/lernen.mp3');
-console.log(`PASS: ${total} words, ${audio} recordings; mixed unique IDs/source-book stars, mixed progress/order restore, search and empty results; shuffle, lists, audio timers, failed/obsolete reads and native inflation.`);
+context.Android.exportBackup = raw => { context.backup = JSON.parse(raw); };
+vm.runInContext("AppTheme.setMode('dark');changePlaybackRate(1.25);exportStudyBackup()",context);
+assert.equal(context.backup.theme,'dark');
+assert.equal(context.backup.rate,1.25);
+vm.runInContext("AppTheme.setMode('light');changePlaybackRate(0.75);reloadLibrary=async()=>{}",context);
+context.backupRaw=JSON.stringify(context.backup);
+vm.runInContext('restoreBackup(backupRaw)',context);
+assert.equal(vm.runInContext('AppTheme.getMode()',context),'dark');
+assert.equal(vm.runInContext('Playback.getRate()',context),1.25);
+vm.runInContext('restoreBackup(JSON.stringify({version:1,marks:{}}))',context);
+assert.equal(vm.runInContext('AppTheme.getMode()',context),'dark','old backups preserve new preferences');
+assert.equal(vm.runInContext('Playback.getRate()',context),1.25);
+const beforeRestore=vm.runInContext('JSON.stringify(store.readAll())',context);
+vm.runInContext('restoreBackup(JSON.stringify({version:1,marks:{invalid:["new"]},theme:"wrong",rate:1}))',context);
+assert.equal(vm.runInContext('JSON.stringify(store.readAll())',context),beforeRestore,'invalid settings must not replace stars');
+console.log(`PASS: ${total} words, ${audio} recordings; mixed study, audio, stale reads; backup restores theme/rate and supports old backups.`);

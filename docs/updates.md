@@ -35,6 +35,8 @@ python tools/publish-update.py publish-windows --installer "x86_64=<生成的set
 
 工具先上传所有包并从公开下载入口读回校验，最后覆盖元数据；版本化包若已存在但内容不同则拒绝覆盖。`--extra` 可上传起始测试包。不存在文件时云盘可能返回 HTML，因此上传器通过公开目录列表判断重名，不把 HTML 当成已发布安装包。
 
+上传前必须通过产物校验：Windows 调用官方 Minisign（PATH 或 `MINISIGN`）验证签名及其绑定的版本/架构；Android 调用 SDK `aapt` / `apksigner` 核对实际版本、包名、公开证书指纹与嵌入配置；兼容 ZIP 也检查内嵌配置。工具缺失或任一输入错误时不上传，不允许仅靠改文件名发布旧包。
+
 ## Android 与旧 Windows 兼容发布
 
 保留原 RSA 工具和公钥，不影响已安装测试客户端：构建并签署对应版本的 Android Release APK，执行 `python tools/publish-update.py package --apk <已签名APK>`，再执行原 `publish --key <RSA私钥> --upload-url <上传链接> --notes "说明"`。
@@ -42,6 +44,8 @@ python tools/publish-update.py publish-windows --installer "x86_64=<生成的set
 该 package 命令生成 APK 和供旧 Windows 更新器使用的兼容 ZIP；ZIP 使用原 `De_words_helper.html` 文件名与公共配置，不包含桌面安装器或重复的更新实现。覆盖更新会保留用户原有 `.cmd` / `.ps1`；它不是面向新用户的 Windows 桌面安装包。Android 输入 APK 必须是同版本、与现有应用同签名的 Release 构建。RSA 签名依赖 `tools/requirements-updates.txt`，仅维护端需要。
 
 ## 签名与边界
+
+两端下载均限制 HTTPS、指定来源域名和重定向次数。Windows 通过官方更新插件的客户端配置实施，不另写下载器。Android 待授权的缓存状态持久化，恢复时重新校验文件；临时下载使用独立文件，已关闭宿主不再保存新待安装状态。
 
 Tauri 更新签名、Windows Authenticode 签名、Android APK 签名和 RSA 元数据签名各有用途，不能互相替代。当前桌面测试包尚未配置正式 Authenticode 签名；Android beta 沿用历史开发证书。丢失更新私钥后，需要手动分发带新公钥的客户端；上传链接或私钥泄露应更换。更新器按元数据版本仅提示更高版本，签名本身不保证云盘长期可用。
 

@@ -29,7 +29,7 @@ final class UpdateManager implements AutoCloseable {
     private final AtomicBoolean busy = new AtomicBoolean();
     private volatile boolean closed;
     private JSONObject config;
-    private File pending;
+    private boolean permissionPrompt;
 
     UpdateManager(MainActivity activity) { this.activity=activity; }
 
@@ -38,6 +38,7 @@ final class UpdateManager implements AutoCloseable {
     }
     private void message(String text) { ui(() -> Toast.makeText(activity,text,Toast.LENGTH_LONG).show()); }
     void check(boolean manual) {
+        if(activity.getSharedPreferences("updates",0).contains("pendingRelease")) { resumeInstall(); return; }
         if(closed || !busy.compareAndSet(false,true)) return;
         worker.execute(() -> {
             try {
@@ -45,19 +46,7 @@ final class UpdateManager implements AutoCloseable {
                 if(config==null)try(InputStream in=activity.getAssets().open("web/app-config.json")) {
                     config=new JSONObject(new String(read(in,65536),StandardCharsets.UTF_8));
                 }
-                JSONObject envelope=new JSONObject(new String(download(config.getString("manifestPath"),65536),StandardCharsets.UTF_8));
-                byte[] payload=Base64.decode(envelope.getString("payload"),Base64.DEFAULT);
-                JSONObject key=config.getJSONObject("publicKey");
-                PublicKey publicKey=KeyFactory.getInstance("RSA").generatePublic(new RSAPublicKeySpec(
-                        new BigInteger(1,Base64.decode(key.getString("modulus"),Base64.DEFAULT)),
-                        new BigInteger(1,Base64.decode(key.getString("exponent"),Base64.DEFAULT))));
-                java.security.Signature verifier=java.security.Signature.getInstance("SHA256withRSA");
-                verifier.initVerify(publicKey); verifier.update(payload);
-                if(!verifier.verify(Base64.decode(envelope.getString("signature"),Base64.DEFAULT))) throw new IOException("更新信息签名无效");
-                JSONObject release=new JSONObject(new String(payload,StandardCharsets.UTF_8));
-                if(release.getInt("schema")!=1 || !config.getString("channel").equals(release.getString("channel"))) throw new IOException("更新通道不匹配");
-                JSONObject asset=release.getJSONObject("android");
-                if(!asset.getString("file").matches("GermanWords-Android-[a-zA-Z0-9.-]+\\.apk") || !asset.getString("sha256").matches("[a-f0-9]{64}") || asset.getLong("size")<=0 || asset.getLong("size")>33554432) throw new IOException("安装包信息无效");
+                JSONObject release=verifyRelease(download(config.getString("manifestPath"),65536));
                 activity.getSharedPreferences("updates",0).edit().putLong("lastCheck",System.currentTimeMillis()).apply();
                 if(release.getLong("versionCode")<=version(installed())) { if(manual)message("已是最新测试版本："+installed().versionName); return; }
                 ui(() -> new AlertDialog.Builder(activity).setTitle("发现新版本 "+release.optString("versionName"))
@@ -66,6 +55,23 @@ final class UpdateManager implements AutoCloseable {
             } catch(Exception e) { if(manual)message("检查更新失败："+e.getMessage()); }
             finally { busy.set(false); }
         });
+    }
+
+    private JSONObject verifyRelease(byte[] data) throws Exception {
+        JSONObject envelope=new JSONObject(new String(data,StandardCharsets.UTF_8));
+        byte[] payload=Base64.decode(envelope.getString("payload"),Base64.DEFAULT);
+        JSONObject key=config.getJSONObject("publicKey");
+        PublicKey publicKey=KeyFactory.getInstance("RSA").generatePublic(new RSAPublicKeySpec(
+                new BigInteger(1,Base64.decode(key.getString("modulus"),Base64.DEFAULT)),
+                new BigInteger(1,Base64.decode(key.getString("exponent"),Base64.DEFAULT))));
+        java.security.Signature verifier=java.security.Signature.getInstance("SHA256withRSA");
+        verifier.initVerify(publicKey); verifier.update(payload);
+        if(!verifier.verify(Base64.decode(envelope.getString("signature"),Base64.DEFAULT))) throw new IOException("更新信息签名无效");
+        JSONObject release=new JSONObject(new String(payload,StandardCharsets.UTF_8));
+        if(release.getInt("schema")!=1 || !config.getString("channel").equals(release.getString("channel"))) throw new IOException("更新通道不匹配");
+        JSONObject asset=release.getJSONObject("android");
+        if(!asset.getString("file").matches("GermanWords-Android-[a-zA-Z0-9.-]+\\.apk") || !asset.getString("sha256").matches("[a-f0-9]{64}") || asset.getLong("size")<=0 || asset.getLong("size")>33554432) throw new IOException("安装包信息无效");
+        return release;
     }
 
     private static byte[] read(InputStream in,int limit) throws IOException {
@@ -101,33 +107,74 @@ final class UpdateManager implements AutoCloseable {
         if(closed || !busy.compareAndSet(false,true))return;
         message("正在下载更新，仍可继续学习…");
         worker.execute(() -> {
-            File file=new File(activity.getCacheDir(),"update.apk");
+            File file=null;
+            boolean saved=false;
             try {
+                file=File.createTempFile("update-", ".apk", activity.getCacheDir());
                 JSONObject asset=release.getJSONObject("android");
                 byte[] data=download('/'+asset.getString("file"),asset.getInt("size"));
-                StringBuilder hash=new StringBuilder();for(byte b:MessageDigest.getInstance("SHA-256").digest(data))hash.append(String.format(java.util.Locale.ROOT,"%02x",b&255));
-                if(data.length!=asset.getInt("size") || !hash.toString().equals(asset.getString("sha256")))throw new IOException("安装包校验失败");
                 try(OutputStream out=new FileOutputStream(file)) { out.write(data); }
-                PackageInfo archive=activity.getPackageManager().getPackageArchiveInfo(file.getPath(),signatureFlags());
-                if(archive==null || !activity.getPackageName().equals(archive.packageName) || version(archive)!=release.getLong("versionCode") || version(archive)<=version(installed()) || !Arrays.equals(signers(archive),signers(installed())))throw new IOException("安装包版本、包名或签名不匹配");
-                ui(() -> {
-                    pending=file;
-                    if(Build.VERSION.SDK_INT>=26 && !activity.getPackageManager().canRequestPackageInstalls()) {
-                        new AlertDialog.Builder(activity).setTitle("允许安装更新").setMessage("请在系统设置中允许德语单词安装应用，返回后由系统确认升级。")
-                                .setNegativeButton("取消",(d,w) -> { pending=null;file.delete(); })
-                                .setPositiveButton("去设置",(d,w) -> activity.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,Uri.parse("package:"+activity.getPackageName())))).show();
-                    } else resumeInstall();
-                });
-            } catch(Exception e) { file.delete();message("更新失败："+e.getMessage()); }
-            finally { busy.set(false); }
+                verifyPackage(file, release);
+                saved=savePending(file, release);
+            } catch(Exception e) { message("更新失败："+e.getMessage()); }
+            finally {
+                if(!saved && file!=null)file.delete();
+                busy.set(false);
+            }
+            if(saved)ui(this::resumeInstall);
         });
     }
+    private void verifyPackage(File file,JSONObject release) throws Exception {
+        JSONObject asset=release.getJSONObject("android");
+        if(file.length()!=asset.getLong("size") || file.length()>33554432)throw new IOException("安装包大小不匹配");
+        MessageDigest digest=MessageDigest.getInstance("SHA-256");
+        try(InputStream in=new FileInputStream(file)) {
+            byte[] buffer=new byte[16384];int count;
+            while((count=in.read(buffer))!=-1)digest.update(buffer,0,count);
+        }
+        StringBuilder hash=new StringBuilder();for(byte value:digest.digest())hash.append(String.format(java.util.Locale.ROOT,"%02x",value&255));
+        if(!hash.toString().equals(asset.getString("sha256")))throw new IOException("安装包校验失败");
+        PackageInfo archive=activity.getPackageManager().getPackageArchiveInfo(file.getPath(),signatureFlags());
+        if(archive==null || !activity.getPackageName().equals(archive.packageName) || version(archive)!=release.getLong("versionCode") || version(archive)<=version(installed()) || !Arrays.equals(signers(archive),signers(installed())))throw new IOException("安装包版本、包名或签名不匹配");
+    }
+    // Persist only a verified package, before leaving the Activity for system permission UI.
+    private synchronized boolean savePending(File file,JSONObject release) throws IOException {
+        if(closed)return false;
+        if(!activity.getSharedPreferences("updates",0).edit().putString("pendingFile",file.getName())
+                .putString("pendingRelease",release.toString()).commit())throw new IOException("无法保存待安装更新");
+        return true;
+    }
+    private File pendingFile() throws IOException {
+        String name=activity.getSharedPreferences("updates",0).getString("pendingFile","");
+        if(!name.matches("update-[a-zA-Z0-9-]+\\.apk"))throw new IOException("待安装文件无效");
+        return new File(activity.getCacheDir(),name);
+    }
+    private void clearPending() {
+        try { pendingFile().delete(); } catch(IOException ignored) { }
+        activity.getSharedPreferences("updates",0).edit().remove("pendingFile").remove("pendingRelease").commit();
+    }
     void resumeInstall() {
-        if(pending==null || closed || (Build.VERSION.SDK_INT>=26 && !activity.getPackageManager().canRequestPackageInstalls()))return;
-        File file=pending;pending=null;
+        if(closed || busy.get() || !activity.getSharedPreferences("updates",0).contains("pendingRelease"))return;
+        if(Build.VERSION.SDK_INT>=26 && !activity.getPackageManager().canRequestPackageInstalls()) {
+            if(permissionPrompt)return;
+            permissionPrompt=true;
+            new AlertDialog.Builder(activity).setTitle("允许安装更新").setMessage("请在系统设置中允许德语单词安装应用，返回后由系统确认升级。")
+                    .setNegativeButton("取消",(d,w) -> clearPending())
+                    .setOnCancelListener(d -> clearPending())
+                    .setPositiveButton("去设置",(d,w) -> activity.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,Uri.parse("package:"+activity.getPackageName()))))
+                    .setOnDismissListener(d -> permissionPrompt=false).show();
+            return;
+        }
+        if(!busy.compareAndSet(false,true))return;
         worker.execute(() -> {
+            if(closed) { busy.set(false);return; }
             int sessionId=-1;
             try {
+                File file=pendingFile();
+                JSONObject release=new JSONObject(activity.getSharedPreferences("updates",0).getString("pendingRelease",""));
+                // Cache files may disappear or change while the app is stopped. Never trust the saved state alone.
+                verifyPackage(file,release);
+                if(closed)return;
                 PackageInstaller installer=activity.getPackageManager().getPackageInstaller();
                 PackageInstaller.SessionParams params=new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);
                 params.setAppPackageName(activity.getPackageName());
@@ -139,13 +186,18 @@ final class UpdateManager implements AutoCloseable {
                 Intent result=new Intent(activity,UpdateReceiver.class);
                 int flags=PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT>=31?PendingIntent.FLAG_MUTABLE:0);
                 try(PackageInstaller.Session session=installer.openSession(sessionId)) {
-                    session.commit(PendingIntent.getBroadcast(activity,sessionId,result,flags).getIntentSender());
+                    synchronized(UpdateManager.this) {
+                        if(closed) { session.abandon();return; }
+                        session.commit(PendingIntent.getBroadcast(activity,sessionId,result,flags).getIntentSender());
+                        clearPending();
+                    }
                 }
             } catch(Exception e) {
                 if(sessionId>=0)try{activity.getPackageManager().getPackageInstaller().abandonSession(sessionId);}catch(Exception ignored){}
-                message("无法启动安装："+e.getMessage());
-            } finally { file.delete(); }
+                clearPending();
+                message("无法启动安装，请重新检查更新："+e.getMessage());
+            } finally { busy.set(false); }
         });
     }
-    @Override public void close() { closed=true;worker.shutdown(); }
+    @Override public synchronized void close() { closed=true;worker.shutdown(); }
 }

@@ -22,10 +22,12 @@ function fixture(saved, blocked = false) {
 const f = fixture();
 assert.equal(f.document.documentElement.dataset.theme, 'dark', 'default follows the dark system');
 assert.equal(f.select.value, 'auto');
+assert.equal(f.theme.getMode(), 'auto');
 f.media.matches = false;
 f.media.dispatchEvent(new Event('change'));
 assert.equal(f.document.documentElement.dataset.theme, 'light');
 f.theme.setMode('dark');
+assert.equal(f.theme.getMode(), 'dark');
 f.media.dispatchEvent(new Event('change'));
 assert.equal(f.document.documentElement.dataset.theme, 'dark', 'manual choice overrides the system');
 assert.equal(f.storage.get('german_theme_v1'), 'dark');

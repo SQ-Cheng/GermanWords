@@ -17,6 +17,8 @@
 
 两端保留各自界面与平台会话状态，不用通用控制器强行统一列表、音频播放器和 Android 备份流程。重复的解析、搜索、录音匹配、星标和语速规则则只在共享层维护。浏览器 Blob URL 的创建/释放由客户端负责，原生播放器的生命周期由 Java 宿主负责。
 
+双端备份使用 `MarkStore.readAll()` / `replaceAll()`，不直接读写星标存储键；这保证持久存储不可写时，备份与界面仍使用同一份会话数据。主题通过 `AppTheme.getMode()` 读取，语速通过 `Playback.getRate()` 读取。平台备份格式可分别保留，输入字段在改变状态前验证。
+
 单单元词条保留旧 ID 和原有存储键；混合词条使用单元名和旧 ID 组成唯一 ID，并保留 `sourceBook` / `sourceRoot`。星标仍写回原单元；混合顺序和位置单独保存。读取全部成功且请求仍是最新时才切换词表，失败和过期读取不得覆盖当前学习状态。搜索词不持久化，无结果不得抹除已保存位置。
 
 修改共享数据规则后运行 `pnpm --dir tests test`；修改任一界面还需跑浏览器回归或真机测试，入口见 `tests/README.md`。双端版本号在 `shared/app-config.json`，Gradle 和 Windows 打包脚本读取；versionCode 必须递增。发布 APK 使用 Release 构建并验证签名；Windows 正式分发 NSIS 安装包，内置 HTML、公共 JS/CSS 和词库。Beta 暂沿用历史开发证书以允许升级，正式发布前需制定独立签名迁移方案。

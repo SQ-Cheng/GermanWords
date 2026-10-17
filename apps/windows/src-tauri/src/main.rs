@@ -19,6 +19,10 @@ struct UpdateInfo {
     notes: String,
 }
 
+fn trusted_update_url(url: &tauri::Url, host: &str, previous: usize) -> bool {
+    url.scheme() == "https" && url.host_str() == Some(host) && previous < 6
+}
+
 #[tauri::command]
 async fn check_update(
     app: tauri::AppHandle,
@@ -30,6 +34,12 @@ async fn check_update(
         .map_err(|e| e.to_string())?
         .as_secs();
     let share = config["shareUrl"].as_str().ok_or("更新来源无效")?;
+    let origin: tauri::Url = share.parse().map_err(|_| "更新来源无效")?;
+    let host = origin.host_str().ok_or("更新域名无效")?.to_owned();
+    if !trusted_update_url(&origin, &host, 0) {
+        return Err("更新来源必须使用 HTTPS".into());
+    }
+    let redirect_host = host.clone();
     let path = config["windowsUpdater"]["manifestPath"]
         .as_str()
         .ok_or("更新路径无效")?;
@@ -41,6 +51,18 @@ async fn check_update(
         .endpoints(vec![endpoint])
         .map_err(|e| e.to_string())?
         .timeout(Duration::from_secs(30))
+        .configure_client(move |client| {
+            let host = redirect_host.clone();
+            client
+                .https_only(true)
+                .redirect(reqwest::redirect::Policy::custom(move |attempt| {
+                    if trusted_update_url(attempt.url(), &host, attempt.previous().len()) {
+                        attempt.follow()
+                    } else {
+                        attempt.error("更新重定向地址不可信或次数过多")
+                    }
+                }))
+        })
         .header(
             "User-Agent",
             format!("GermanWords/{}", app.package_info().version),
@@ -54,10 +76,7 @@ async fn check_update(
         .await
         .map_err(|e| e.to_string())?;
     if let Some(ref release) = update {
-        let origin: tauri::Url = share.parse().map_err(|_| "更新来源无效")?;
-        if release.download_url.scheme() != "https"
-            || release.download_url.host_str() != origin.host_str()
-        {
+        if !trusted_update_url(&release.download_url, &host, 0) {
             return Err("安装包不在指定云盘中".into());
         }
     }
@@ -101,4 +120,27 @@ fn main() {
         })
         .run(tauri::generate_context!())
         .expect("Unable to start GermanWords");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::trusted_update_url;
+
+    #[test]
+    fn update_requests_stay_on_https_origin_with_bounded_redirects() {
+        let host = "cloud.example.org";
+        for (url, previous, allowed) in [
+            ("https://cloud.example.org/file", 0, true),
+            ("https://cloud.example.org/files/redirect", 5, true),
+            ("https://cloud.example.org/file", 6, false),
+            ("http://cloud.example.org/file", 0, false),
+            ("https://other.example.org/file", 0, false),
+            ("https://cloud.example.org.attacker.test/file", 0, false),
+        ] {
+            assert_eq!(
+                trusted_update_url(&url.parse().unwrap(), host, previous),
+                allowed
+            );
+        }
+    }
 }

@@ -161,7 +161,8 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) pause
 
 function exportStudyBackup() {
   saveStudy();
-  Android.exportBackup(JSON.stringify({version:1, marks:JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'), preferences}, null, 2));
+  Android.exportBackup(JSON.stringify({version:1, marks:store.readAll(), preferences,
+    theme:AppTheme.getMode(), rate:Playback.getRate()}, null, 2));
 }
 function restoreBackup(raw) {
   try {
@@ -172,12 +173,16 @@ function restoreBackup(raw) {
       if (!Array.isArray(words) || !words.every(w => typeof w === 'string')) throw new Error('星标格式不正确');
       Object.defineProperty(safeMarks, book, {value:words, enumerable:true});
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(safeMarks));
+    if (data.theme !== undefined && !['auto','light','dark'].includes(data.theme)) throw new Error('主题格式不正确');
+    if (data.rate !== undefined && ![0.75,1,1.25,1.5].includes(data.rate)) throw new Error('语速格式不正确');
+    store.replaceAll(safeMarks);
     if (data.preferences && typeof data.preferences === 'object' && !Array.isArray(data.preferences)) {
       preferences = normalizePreferences(data.preferences);
       localStorage.setItem(PREF_KEY, JSON.stringify(preferences));
     }
     applyPreferences();
+    if (data.theme !== undefined) AppTheme.setMode(data.theme);
+    if (data.rate !== undefined) changePlaybackRate(data.rate);
     reloadLibrary();
     notify('学习进度已恢复', 'info');
   } catch (e) { notify('恢复失败：' + e.message, 'error'); }

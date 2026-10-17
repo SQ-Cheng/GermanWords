@@ -49,6 +49,7 @@ public class SmokeInstrumentation extends Instrumentation {
                 SystemClock.sleep(250);
             }
             if(!loaded) throw new IOException("Initial library did not load");
+            UpdateChecks.run(activity);
             oldTheme=evaluate("localStorage.getItem('german_theme_v1')");
             oldRate=evaluate("localStorage.getItem('german_playback_rate_v1')");
             AtomicReference<Boolean> focused=new AtomicReference<>(false);

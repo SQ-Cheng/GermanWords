@@ -6,9 +6,12 @@ import argparse
 import base64
 import hashlib
 import json
+import os
+import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import urllib.parse
 import urllib.request
 import uuid
@@ -19,16 +22,69 @@ ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / 'shared/app-config.json'
 
 
+def sdk_tool(name):
+    executable = name + ('.bat' if name == 'apksigner' else '.exe') if os.name == 'nt' else name
+    found = shutil.which(executable)
+    if found:
+        return found
+    sdk = os.environ.get('ANDROID_HOME') or os.environ.get('ANDROID_SDK_ROOT')
+    if sdk:
+        candidates = list((Path(sdk) / 'build-tools').glob('*/' + executable))
+        stable = [p for p in candidates if re.fullmatch(r'\d+\.\d+\.\d+', p.parent.name)]
+        if stable:
+            return str(max(stable, key=lambda p: tuple(map(int, p.parent.name.split('.')))))
+    raise ValueError(f'{name} is required; configure Android SDK build-tools')
+
+
+def verify_apk(apk, config):
+    badging = subprocess.check_output([sdk_tool('aapt'), 'dump', 'badging', str(apk)], encoding='utf-8')
+    package = re.search(r"package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", badging)
+    if not package or package.groups() != ('cn.study.germanwords', str(config['versionCode']), config['versionName']):
+        raise ValueError('APK package/version does not match the release configuration')
+    certs = subprocess.check_output([sdk_tool('apksigner'), 'verify', '--print-certs', str(apk)], encoding='utf-8')
+    expected = (ROOT / 'apps/android/release-certificate.sha256').read_text(encoding='utf-8').strip()
+    signers = re.findall(r'Signer #\d+ certificate SHA-256 digest: ([a-fA-F0-9]+)', certs)
+    if [value.lower() for value in signers] != [expected]:
+        raise ValueError('APK signing certificate does not match the supported upgrade identity')
+    with zipfile.ZipFile(apk) as archive:
+        embedded = json.loads(archive.read('assets/web/app-config.json'))
+    if embedded != config:
+        raise ValueError('APK embedded configuration differs from the release configuration')
+
+
+def verify_installer(installer, arch, config):
+    signature = Path(str(installer) + '.sig').read_text(encoding='utf-8').strip()
+    decoded = base64.b64decode(signature, validate=True).decode('utf-8')
+    public_key = base64.b64decode(config['windowsUpdater']['publicKey'], validate=True).decode('utf-8').splitlines()[1]
+    minisign = os.environ.get('MINISIGN') or shutil.which('minisign')
+    if not minisign:
+        raise ValueError('Official minisign is required; add it to PATH or set MINISIGN')
+    with tempfile.TemporaryDirectory(prefix='GermanWords-verify-') as directory:
+        sig = Path(directory) / 'installer.minisig'
+        sig.write_text(decoded, encoding='utf-8')
+        subprocess.run([minisign, '-Vm', str(installer), '-x', str(sig), '-P', public_key, '-Q'], check=True)
+    # Only trust this comment after minisign verified both the artifact and the comment.
+    comment = next(line.removeprefix('trusted comment: ') for line in decoded.splitlines() if line.startswith('trusted comment: '))
+    fields = dict(field.split(':', 1) for field in comment.split('\t') if ':' in field)
+    suffix = {'x86_64':'_x64-setup.exe', 'aarch64':'_arm64-setup.exe'}[arch]
+    if fields.get('version') != config['versionName'] or not fields.get('file', '').endswith(suffix):
+        raise ValueError('Installer signed version/architecture does not match the release configuration')
+    return signature
+
+
 def read_url(url):
     with urllib.request.urlopen(url, timeout=60) as response:
         return response.read()
 
 
 def package(apk, destination, config):
+    verify_apk(apk, config)
     subprocess.run([sys.executable, str(ROOT / 'tools/build-windows.py')], check=True)
     destination.mkdir(parents=True, exist_ok=True)
     version = config['versionName']
-    shutil.copyfile(apk, destination / f'GermanWords-Android-{version}.apk')
+    target = destination / f'GermanWords-Android-{version}.apk'
+    if apk.resolve() != target.resolve():
+        shutil.copyfile(apk, target)
     with zipfile.ZipFile(destination / f'GermanWords-Windows-{version}.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
         web = ROOT / 'output/windows/web'
         for file in sorted(web.rglob('*')):
@@ -43,6 +99,10 @@ def publish(args, config):
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import padding
 
+    verify_apk(args.directory / f"GermanWords-Android-{config['versionName']}.apk", config)
+    with zipfile.ZipFile(args.directory / f"GermanWords-Windows-{config['versionName']}.zip") as archive:
+        if json.loads(archive.read('app-config.json')) != config:
+            raise ValueError('Legacy ZIP configuration does not match this release')
     key = serialization.load_pem_private_key(args.key.read_bytes(), password=None)
     numbers = key.public_key().public_numbers()
     expected = config['publicKey']
@@ -116,7 +176,7 @@ def publish_windows(args, config):
         if 'windows-' + arch in platforms:
             raise ValueError('Duplicate installer architecture: ' + arch)
         installer = Path(source)
-        signature = Path(source + '.sig').read_text(encoding='utf-8').strip()
+        signature = verify_installer(installer, arch, config)
         name = f'GermanWords-Windows-{version}-{arch}-Setup.exe'
         target = args.directory / name
         if target.resolve() != installer.resolve():

@@ -25,6 +25,17 @@ store.setMark('E1', 'session only', true);
 assert.equal(store.marks('E1').join('|'), 'externally restored|session only');
 assert.equal(warnings, 1);
 blocked = false;
+assert.equal(store.readAll().E1.join('|'), 'externally restored|session only', 'backup includes in-memory edits');
+store.replaceAll({E1:['restored']});
+assert.equal(store.marks('E1')[0], 'restored', 'restore replaces the fallback cache too');
+assert.equal(JSON.parse(raw).E1[0], 'restored');
+blocked = true;
+store.replaceAll({E2:['offline restore']});
+assert.equal(store.readAll().E2[0], 'offline restore');
+const before = JSON.stringify(store.readAll());
+assert.throws(() => store.replaceAll({E2:[42]}));
+assert.equal(JSON.stringify(store.readAll()), before);
+blocked = false;
 for (const invalid of ['[]', 'null', '{bad json']) {
   raw = invalid;
   const clean = api.create(() => warnings++);

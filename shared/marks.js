@@ -15,7 +15,20 @@ const MarkStore = (function () {
         return data && typeof data === 'object' && !Array.isArray(data) ? data : {};
       } catch (_) { return {}; }
     }
+    function writeAll(all) {
+      memory = JSON.stringify(all);
+      try { localStorage.setItem(key, memory); usable = true; }
+      catch (_) { usable = false; onStorageError(); }
+    }
     return {
+      readAll,
+      replaceAll(all) {
+        if (!all || typeof all !== 'object' || Array.isArray(all)
+            || !Object.values(all).every(words => Array.isArray(words) && words.every(word => typeof word === 'string'))) {
+          throw new Error('星标格式不正确');
+        }
+        writeAll(all);
+      },
       marks(book) {
         const words = readAll()[book];
         return Array.isArray(words) ? words : [];
@@ -27,12 +40,7 @@ const MarkStore = (function () {
         if (marked && index < 0) words.push(word);
         else if (!marked && index >= 0) words.splice(index, 1);
         Object.defineProperty(all, book, {value:words, enumerable:true, configurable:true, writable:true});
-        memory = JSON.stringify(all);
-        if (usable) {
-          try { localStorage.setItem(key, memory); return; }
-          catch (_) { usable = false; }
-        }
-        onStorageError();
+        writeAll(all);
       }
     };
   }

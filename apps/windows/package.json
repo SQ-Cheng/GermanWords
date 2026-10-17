@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "prepare:web": "python ../../tools/build-windows.py",
-    "dev": "pnpm run prepare:web && tauri dev --config src-tauri/tauri.generated.json",
+    "dev": "pnpm run prepare:web && tauri dev --no-dev-server --config src-tauri/tauri.generated.json",
     "build": "pnpm run prepare:web && tauri build --config src-tauri/tauri.generated.json"
   },
   "devDependencies": {

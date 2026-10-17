@@ -11,6 +11,7 @@ node tests/test-theme.mjs
 node tests/test-playback.mjs
 node tests/test-vocabulary.mjs
 node tests/test-marks.mjs
+node tests/test-desktop.mjs
 ```
 
 真机测试需要 JDK 17+、Android SDK 35、Python 3 和已授权 USB 调试的设备。允许手机的 USB 安装提示，设置 `ANDROID_HOME` 或将 `adb` 加入 PATH：
@@ -41,3 +42,7 @@ pnpm --dir tests test:browser
 Windows 桌面迁移后，先运行 `python tools/build-windows.py`，浏览器回归同时覆盖源码与生成前端。`node tests/legacy-migration.cjs` 验证在原 file:// 地址替换迁移页后保留并导出旧星标/主题/语速。`tests/desktop.cjs` 针对真实 Tauri WebView2 检查内置词库、备份校验、重载保持、主题和 480–1120px 响应布局；按 `apps/windows/README.md` 启动隔离测试实例后执行，测试专用调试端口不进入正式运行方式。
 
 旧 PowerShell 更新器已随架构迁移移除，不再维护其测试；历史验证记录保留。当前安装器、真实云盘升级和验证边界见 `artifacts/windows-desktop-verification.md`。
+
+合并前 P2 回归：`test-desktop.mjs` 检查备份的内存存储回退及启动词库的过期请求；Android 引擎测试检查主题/语速备份、旧格式兼容和非法字段不覆盖。真机入口还运行 `UpdateChecks`，验证更新信息签名、待安装记录跨管理器恢复、过期任务拒绝保存、损坏缓存拒绝及取消清理，不打开系统安装器。
+
+发布工具回归执行 `python tests/test_updates.py`，无需上传权限或真实私钥。完整签名测试需要官方 Minisign（PATH 或 `MINISIGN`），没有安装时会明确跳过该测试。Rust 重定向策略执行 `cargo test --locked`（在 `apps/windows/src-tauri/`），静态检查执行 `cargo clippy --locked -- -D warnings`。

@@ -36,10 +36,12 @@ const Desktop = (function () {
   }
   async function loadBuiltIn() {
     if (!native) return;
+    const sequence = loadSequence;
     try {
       const response = await fetch('library.json');
       if (!response.ok) throw new Error('内置词库索引无法读取');
       const manifest = await response.json();
+      if (sequence !== loadSequence) return;
       const files = manifest.map(item => ({
         name: item.name, webkitRelativePath: item.path,
         packagedUrl: new URL(item.path.split('/').map(encodeURIComponent).join('/'), location.href).href,
@@ -51,7 +53,7 @@ const Desktop = (function () {
       }));
       handleFiles(files);
       await loadFile(Object.keys(fileMap)[0]);
-    } catch (error) { notify('载入词库失败：' + error.message, 'error'); }
+    } catch (error) { if (sequence === loadSequence) notify('载入词库失败：' + error.message, 'error'); }
   }
   if (native) {
     document.getElementById('checkUpdates').hidden = false;
@@ -65,8 +67,7 @@ const Desktop = (function () {
 function exportWindowsBackup() {
   try {
     const data = {format:'GermanWords-Windows', version:1,
-      marks:JSON.parse(localStorage.getItem(MarkStore.key) || '{}'),
-      theme:localStorage.getItem('german_theme_v1') || 'auto', rate:Playback.getRate()};
+      marks:store.readAll(), theme:AppTheme.getMode(), rate:Playback.getRate()};
     const url = URL.createObjectURL(new Blob([JSON.stringify(data,null,2)], {type:'application/json'}));
     const link = document.createElement('a');
     link.href = url; link.download = 'GermanWords-backup.json'; link.click();
@@ -78,7 +79,7 @@ function restoreWindowsBackup(raw) {
   if (data.format !== 'GermanWords-Windows' || data.version !== 1 || !data.marks || typeof data.marks !== 'object' || Array.isArray(data.marks)
       || !Object.values(data.marks).every(words => Array.isArray(words) && words.every(word => typeof word === 'string'))
       || !['auto','light','dark'].includes(data.theme) || ![0.75,1,1.25,1.5].includes(data.rate)) throw new Error('备份格式不正确');
-  localStorage.setItem(MarkStore.key, JSON.stringify(data.marks));
+  store.replaceAll(data.marks);
   AppTheme.setMode(data.theme);
   changePlaybackRate(data.rate);
   currentFileWords.forEach(word => { word.marked = store.marks(word.sourceBook || currentFileName).includes(word.german); });
