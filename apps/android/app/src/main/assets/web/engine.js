@@ -299,6 +299,7 @@
         }
         if (window.Android) { Android.play(new URL(src.url, location.href).href); return; }
         const audio = new Audio(src.url);
+        audio.playbackRate = Playback.getRate();
         audio.addEventListener(
           "error",
           function () {

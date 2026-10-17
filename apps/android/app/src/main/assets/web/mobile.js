@@ -6,6 +6,12 @@ function syncSystemTheme() {
   if (window.Android) AppTheme.setSystemDark(Android.isSystemDark());
 }
 syncSystemTheme();
+function changePlaybackRate(value) {
+  const rate = Playback.setRate(value);
+  if (currentAudio) currentAudio.playbackRate = rate;
+  if (window.Android) Android.setPlaybackRate(rate);
+}
+changePlaybackRate(Playback.getRate());
 
 const PREF_KEY = 'german_android_preferences_v1';
 let preferences;

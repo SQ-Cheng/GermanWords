@@ -38,6 +38,7 @@ public class SmokeInstrumentation extends Instrumentation {
         int resultCode=Activity.RESULT_CANCELED;
         String oldPreferences=null;
         String oldTheme=null;
+        String oldRate=null;
         try {
             Intent intent=new Intent(getTargetContext(), MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             activity=(MainActivity)startActivitySync(intent);
@@ -49,6 +50,7 @@ public class SmokeInstrumentation extends Instrumentation {
             }
             if(!loaded) throw new IOException("Initial library did not load");
             oldTheme=evaluate("localStorage.getItem('german_theme_v1')");
+            oldRate=evaluate("localStorage.getItem('german_playback_rate_v1')");
             AtomicReference<Boolean> focused=new AtomicReference<>(false);
             for(int i=0;i<80;i++) {
                 runOnMainSync(() -> {activity.web.requestFocus();focused.set(activity.hasWindowFocus());});
@@ -124,7 +126,7 @@ public class SmokeInstrumentation extends Instrumentation {
             runOnMainSync(() -> activity.onConfigurationChanged(activity.getResources().getConfiguration()));
             if(!"true".equals(evaluate("document.documentElement.dataset.theme===(Android.isSystemDark()?'dark':'light')")))throw new IOException("Configuration changes must resync the actual Android theme");
             // Real native MediaPlayer must prepare and play a packaged recording.
-            evaluate("pauseStudyAudio(); Android.play(audioSource(displayWords[0]).url); true");
+            evaluate("pauseStudyAudio(); changePlaybackRate(0.75); Android.play(audioSource(displayWords[0]).url); true");
             Field field=MainActivity.class.getDeclaredField("player");field.setAccessible(true);
             AtomicReference<Boolean> playing=new AtomicReference<>(false);
             for(int i=0;i<40;i++) {
@@ -133,6 +135,12 @@ public class SmokeInstrumentation extends Instrumentation {
                 SystemClock.sleep(50);
             }
             if(!playing.get())throw new IOException("Native MediaPlayer did not play packaged audio");
+            AtomicReference<Float> speed=new AtomicReference<>(0f);
+            runOnMainSync(() -> {try {speed.set(((MediaPlayer)field.get(activity)).getPlaybackParams().getSpeed());}catch(Exception ignored){}});
+            if(Math.abs(speed.get()-0.75f)>.01f)throw new IOException("Native playback rate not applied");
+            evaluate("changePlaybackRate(1.25)");
+            runOnMainSync(() -> {try {speed.set(((MediaPlayer)field.get(activity)).getPlaybackParams().getSpeed());}catch(Exception ignored){}});
+            if(Math.abs(speed.get()-1.25f)>.01f)throw new IOException("Active native playback rate not updated");
             evaluate("pauseStudyAudio()");
             manifest=new File(activity.getFilesDir(),"import-manifest.json");
             if(manifest.exists())oldManifest=readFile(manifest);
@@ -169,6 +177,9 @@ public class SmokeInstrumentation extends Instrumentation {
         } catch(Exception e) {
             results.putString("stream", "\nFAIL: "+e+"\n");
         } finally {
+            if(activity!=null && oldRate!=null)try {
+                evaluate("changePlaybackRate("+("null".equals(oldRate)?"1":oldRate)+");"+("null".equals(oldRate)?"localStorage.removeItem('german_playback_rate_v1')":"localStorage.setItem('german_playback_rate_v1',"+oldRate+")"));
+            }catch(Exception ignored){}
             if(activity!=null && oldTheme!=null)try {
                 evaluate("AppTheme.setMode("+("null".equals(oldTheme)?"'auto'":oldTheme)+");"+("null".equals(oldTheme)?"localStorage.removeItem('german_theme_v1')":"localStorage.setItem('german_theme_v1',"+oldTheme+")")+";syncSystemTheme()");
             }catch(Exception ignored){}

@@ -32,6 +32,9 @@ process.chdir(path.resolve(__dirname,'..'));
       await page.emulateMedia({colorScheme:'dark'});
       await page.waitForFunction(()=>document.documentElement.dataset.theme==='dark');
 
+      await page.locator('#playbackRate').selectOption('1.25');
+      await page.reload();
+      assert.equal(await page.locator('#playbackRate').inputValue(),'1.25','playback rate survives reload');
       await page.locator('input[webkitdirectory]').setInputFiles(path.resolve(words));
       await page.waitForFunction(() => Object.keys(fileMap).length === 8);
       const totals = await page.evaluate(async () => {
@@ -63,6 +66,9 @@ process.chdir(path.resolve(__dirname,'..'));
       await page.waitForTimeout(200);
       assert.equal(await page.evaluate(()=>window.manualPlays),1,'normal card click replays once and cancels pending automatic audio');
       assert.equal(await page.evaluate(()=>!!currentAudio && !currentAudio.paused),true);
+      assert.equal(await page.evaluate(()=>currentAudio.playbackRate),1.25);
+      await page.locator('#playbackRate').selectOption('0.75');
+      assert.equal(await page.evaluate(()=>currentAudio.playbackRate),0.75,'changing the setting updates active playback');
       await page.evaluate(()=>{playPronounce=window.originalPlay;});
       await page.evaluate(() => { currentIndex=0; toggleCurrentMark(); toggleFilter(); });
       assert.equal(await page.evaluate(()=>displayWords.length),1);
