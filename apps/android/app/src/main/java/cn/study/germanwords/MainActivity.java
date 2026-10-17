@@ -38,6 +38,7 @@ public class MainActivity extends Activity {
     WebView web;
     private FrameLayout root;
     private MediaPlayer player;
+    private UpdateManager updates;
     private float playbackRate = 1f;
     private boolean audioPrepared;
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
@@ -94,6 +95,8 @@ public class MainActivity extends Activity {
             }
         });
         web.loadUrl("https://" + HOST + "/assets/web/index.html");
+        updates=new UpdateManager(this);
+        updates.check(false);
     }
 
     void applyTextScale(float scale) {
@@ -152,6 +155,7 @@ public class MainActivity extends Activity {
     private void js(String code) { runOnUiThread(() -> { if (!destroyed) web.evaluateJavascript(code, null); }); }
     private void notice(String text, String kind) { js("notify(" + JSONObject.quote(text) + "," + JSONObject.quote(kind) + ")"); }
     public class AndroidBridge {
+        @JavascriptInterface public void checkForUpdates() { runOnUiThread(() -> updates.check(true)); }
         @JavascriptInterface public void setPlaybackRate(double rate) {
             float valid = rate==0.75 || rate==1 || rate==1.25 || rate==1.5 ? (float)rate : 1f;
             runOnUiThread(() -> {
@@ -362,6 +366,6 @@ public class MainActivity extends Activity {
     private void releaseAudio() { if(player!=null) { player.release(); player=null; } audioPrepared=false; }
     @Override public void onBackPressed() { web.evaluateJavascript("typeof handleAndroidBack==='function' && handleAndroidBack()", value -> { if(!"true".equals(value)) super.onBackPressed(); }); }
     @Override protected void onPause() { super.onPause(); web.evaluateJavascript("if(typeof pauseStudyAudio==='function')pauseStudyAudio()",null); releaseAudio(); web.onPause(); }
-    @Override protected void onResume() { super.onResume(); if(web!=null) web.onResume(); }
-    @Override protected void onDestroy() { destroyed=true; releaseAudio(); worker.shutdown(); web.removeJavascriptInterface("Android"); web.destroy(); super.onDestroy(); }
+    @Override protected void onResume() { super.onResume(); if(web!=null) web.onResume(); if(updates!=null)updates.resumeInstall(); }
+    @Override protected void onDestroy() { destroyed=true; if(updates!=null)updates.close(); releaseAudio(); worker.shutdown(); web.removeJavascriptInterface("Android"); web.destroy(); super.onDestroy(); }
 }

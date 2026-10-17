@@ -1,9 +1,10 @@
 plugins { id 'com.android.application' }
+def appConfig = new groovy.json.JsonSlurper().parse(rootProject.file('../../shared/app-config.json'))
 
 def sharedWords = rootProject.file('../../shared/words')
 def prepareSharedAssets = tasks.register('prepareSharedAssets', Sync) {
     from(sharedWords) { into 'web/words' }
-    from(rootProject.file('../../shared')) { include '*.js', '*.css'; into 'web' }
+    from(rootProject.file('../../shared')) { include '*.js', '*.css', '*.json'; into 'web' }
     into layout.buildDirectory.dir('generated/sharedAssets')
     doLast {
         def entries = fileTree(sharedWords).files.sort { a, b -> a.path <=> b.path }.collect { file ->
@@ -21,8 +22,8 @@ android {
         applicationId 'cn.study.germanwords'
         minSdk 23
         targetSdk 35
-        versionCode 5
-        versionName '4.1.0-beta.1'
+        versionCode appConfig.versionCode
+        versionName appConfig.versionName
         testInstrumentationRunner 'cn.study.germanwords.SmokeInstrumentation'
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_11; targetCompatibility JavaVersion.VERSION_11 }
