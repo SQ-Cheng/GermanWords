@@ -11,3 +11,8 @@ tmp/
 output/windows/
 node_modules/
 output/releases/
+
+apps/windows/src-tauri/target/
+apps/windows/src-tauri/gen/
+apps/windows/src-tauri/tauri.generated.json
+apps/windows/src-tauri/.cargo/config.toml

@@ -9,8 +9,8 @@ process.chdir(path.resolve(__dirname,'..'));
   const browser = await chromium.launch({headless:true, channel:'msedge'});
   try {
     for (const [html, words] of [
-      ['apps/windows/De_words_helper.html','shared/words'],
-      ['output/windows/De_words_helper.html','output/windows/words']
+      ['apps/windows/frontend/index.html','shared/words'],
+      ['output/windows/web/index.html','output/windows/web/words']
     ]) {
       const page = await browser.newPage();
       const errors = [];

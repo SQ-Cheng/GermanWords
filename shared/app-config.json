@@ -1,11 +1,15 @@
 {
-  "versionCode": 7,
-  "versionName": "4.2.0-beta.2",
+  "versionCode": 8,
+  "versionName": "4.2.0-beta.3",
   "channel": "beta",
   "shareUrl": "https://cloud.tsinghua.edu.cn/d/361a8eccb1624c65ae26/",
   "manifestPath": "/update-beta.json",
   "publicKey": {
     "modulus": "sluWsSzkv741IdSoJAe48Bxxc4kjI9E3XWwfZDTLwq8vGlg9UQPSyFOvDJ08cC5K+zaCTLmbRrzNTsvNEBa3vgwWMzuxIaW0yYHfiS0YMUgZ+2ZCRPCLiOE4ctj23NTZVR8DpEuo6wfj8wiG4f+Hqpc3m9NQp1EH4QbFE3Q0jfMS0Op/gRRwA3llx/gu7x6oF3owMyxdALl8ixUiPOn+UxYM3PYqRchSNUJGJA2rRMsC1slc/Ny4tOchNEtTJdkBn7h4yQBduL+0pTRDY38GwOqU3ls0W9UCD5LNPtiRyz0qkDI2cYtAiPIpx2cTheK/5p4HXdcvXs4ppGv/oMYsiQ==",
     "exponent": "AQAB"
+  },
+  "windowsUpdater": {
+    "manifestPath": "/update-windows-beta.json",
+    "publicKey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDg0ODZCOURGOTUxMDA1OEUKUldTT0JSQ1YzN21HaERKWU0vME1HREtaOUxDeDM4RE1lVFg0aG5NYzRCN1VGUU9NaWkwTnFzYjMK"
   }
 }

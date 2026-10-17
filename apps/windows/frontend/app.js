@@ -75,6 +75,7 @@ function hasAudio(word) {
 
 function audioSource(word) {
   const file = findAudioFile(word);
+  if (file && file.packagedUrl) return { url: file.packagedUrl, label: file.name };
   if (file) {
     if (!blobUrls.has(file)) blobUrls.set(file, URL.createObjectURL(file));
     return { url: blobUrls.get(file), label: file.name };
@@ -243,6 +244,7 @@ async function loadBooks(names) {
       if (checkbox) checkbox.checked = names.includes(el.dataset.fileName);
     });
     updateMixSelection();
+    closeLibrary();
     parsed.warnings.forEach(warning => notify(warning, 'warn'));
     return true;
   } catch (err) {
@@ -379,6 +381,8 @@ function updateNav() {
 }
 
 function updateUI() {
+  document.getElementById('lessonTitle').textContent = currentBookNames.length > 1 ? '混合学习' : currentFileName.replace(/_单词汇总\.xlsx$/i, '').replace(/\.xlsx$/i, '') || '德语单词';
+  document.getElementById('lessonCount').textContent = currentFileWords.length ? currentFileWords.length + ' 词' : '离线学习';
   const markedCount = currentFileWords.filter((w) => w.marked).length;
   document.getElementById(
     "btnFilter"
@@ -451,6 +455,9 @@ function renderCard() {
   cardEl.className = `card ${bgClass}`;
   if (word.marked) cardEl.classList.add("marked");
   else cardEl.classList.remove("marked");
+  const star = document.querySelector('.star-mark');
+  star.textContent = word.marked ? '★' : '☆';
+  star.setAttribute('aria-pressed', String(word.marked));
 
   // 2. 填充内容
   const germanEl = document.getElementById("cardGerman");
@@ -682,6 +689,8 @@ function toggleMark(wordObj) {
 
 // === 键盘事件 ===
 document.addEventListener("keydown", function (e) {
+  if (e.key === "Escape") closeLibrary();
+  if (document.querySelector("dialog[open]") || document.body.classList.contains("library-open")) return;
   if (displayWords.length === 0) return;
 
   // 焦点在输入控件里时不抢按键
@@ -707,3 +716,27 @@ document.addEventListener("keydown", function (e) {
     toggleCurrentMark();
   }
 });
+
+function closeLibrary() {
+  document.body.classList.remove('library-open');
+  document.getElementById('openLibrary').setAttribute('aria-expanded', 'false');
+}
+document.getElementById('openLibrary').onclick = () => {
+  document.body.classList.add('library-open');
+  document.getElementById('openLibrary').setAttribute('aria-expanded', 'true');
+};
+document.getElementById('closeLibrary').onclick = closeLibrary;
+document.getElementById('scrim').onclick = closeLibrary;
+document.getElementById('mixBooks').onclick = loadSelectedBooks;
+document.getElementById('playbackRate').onchange = event => changePlaybackRate(event.target.value);
+document.getElementById('themeSelect').onchange = event => AppTheme.setMode(event.target.value);
+document.getElementById('wordSearch').oninput = event => searchWords(event.target.value);
+document.getElementById('modeSelect').onchange = changeMode;
+document.getElementById('btnShuffle').onclick = shuffleCurrentList;
+document.getElementById('btnCardView').onclick = () => switchView('card');
+document.getElementById('btnListView').onclick = () => switchView('list');
+document.getElementById('btnFilter').onclick = toggleFilter;
+document.getElementById('btnPrevCard').onclick = prevCard;
+document.getElementById('btnNextCard').onclick = nextCard;
+document.getElementById('cardView').onclick = toggleReveal;
+document.querySelector('.star-mark').onclick = event => { event.stopPropagation(); toggleCurrentMark(); };
