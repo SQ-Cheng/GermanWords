@@ -35,7 +35,7 @@ python tools/publish-update.py publish-windows --installer "x86_64=<生成的set
 
 工具先上传所有包并从公开下载入口读回校验，最后覆盖元数据；版本化包若已存在但内容不同则拒绝覆盖。`--extra` 可上传起始测试包。不存在文件时云盘可能返回 HTML，因此上传器通过公开目录列表判断重名，不把 HTML 当成已发布安装包。
 
-上传前必须通过产物校验：Windows 调用官方 Minisign（PATH 或 `MINISIGN`）验证签名及其绑定的版本/架构；Android 调用 SDK `aapt` / `apksigner` 核对实际版本、包名、公开证书指纹与嵌入配置；兼容 ZIP 也检查内嵌配置。工具缺失或任一输入错误时不上传，不允许仅靠改文件名发布旧包。
+上传前必须通过产物校验：Windows 调用官方 Minisign（PATH 或 `MINISIGN`）验证签名及其绑定的版本/架构；Android 调用 SDK `aapt` / `apksigner` 核对实际版本、包名、公开证书指纹与嵌入配置；兼容 ZIP 也检查内嵌配置。工具缺失或任一输入错误时不上传，不允许仅靠改文件名发布旧包。SDK 在 APK 所在目录执行并只接收文件名，避免 Windows 工具对中文绝对路径的兼容限制。
 
 ## Android 与旧 Windows 兼容发布
 

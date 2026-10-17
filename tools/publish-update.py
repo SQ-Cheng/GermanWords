@@ -37,11 +37,13 @@ def sdk_tool(name):
 
 
 def verify_apk(apk, config):
-    badging = subprocess.check_output([sdk_tool('aapt'), 'dump', 'badging', str(apk)], encoding='utf-8')
+    # Some Windows SDK tools cannot open a non-ASCII absolute path. Let the OS
+    # select the working directory and pass only the package's filename.
+    badging = subprocess.check_output([sdk_tool('aapt'), 'dump', 'badging', apk.name], cwd=apk.parent, encoding='utf-8')
     package = re.search(r"package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", badging)
     if not package or package.groups() != ('cn.study.germanwords', str(config['versionCode']), config['versionName']):
         raise ValueError('APK package/version does not match the release configuration')
-    certs = subprocess.check_output([sdk_tool('apksigner'), 'verify', '--print-certs', str(apk)], encoding='utf-8')
+    certs = subprocess.check_output([sdk_tool('apksigner'), 'verify', '--print-certs', apk.name], cwd=apk.parent, encoding='utf-8')
     expected = (ROOT / 'apps/android/release-certificate.sha256').read_text(encoding='utf-8').strip()
     signers = re.findall(r'Signer #\d+ certificate SHA-256 digest: ([a-fA-F0-9]+)', certs)
     if [value.lower() for value in signers] != [expected]:

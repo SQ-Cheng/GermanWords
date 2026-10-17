@@ -75,6 +75,13 @@ class ReleaseInputs(unittest.TestCase):
                 with self.assertRaises(ValueError): publisher.publish_windows(args, self.config)
                 upload.assert_not_called()
 
+    def test_sdk_receives_filename_and_working_directory(self):
+        apk = ROOT / 'output/releases/update-test/GermanWords-Android-test.apk'
+        with patch.object(publisher, 'sdk_tool', return_value='aapt'), patch.object(publisher.subprocess, 'check_output', return_value='invalid package') as run:
+            with self.assertRaises(ValueError): publisher.verify_apk(apk, self.config)
+            self.assertEqual(run.call_args.args[0][-1], apk.name)
+            self.assertEqual(run.call_args.kwargs['cwd'], apk.parent)
+
 
 if __name__ == '__main__':
     unittest.main()
