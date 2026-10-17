@@ -1,53 +1,78 @@
-# 德语单词记忆助手
+# GermanWords · 德语单词记忆助手
 
-Android 与 Windows 离线版共用 [GermanWords 仓库](https://github.com/SQ-Cheng/GermanWords)，两个客户端分别维护界面与平台功能。项目根文件夹为 `GermanWords/`；Android Studio 仍打开其中的 `apps/android/`。
+GermanWords 是面向 Android 和 Windows 的离线德语词汇学习工具，支持单词卡片、自测、录音播放和星标复习。两端共用词库与基础数据处理逻辑，分别适配手机和电脑的操作方式。日常学习无需联网。
 
-当前测试版本：**Android / Windows 4.1.0-beta.1**（Android versionCode 5）。这是 beta 预发布版；正式版与历史版本保留在 Releases 中。
+[下载与历史版本](https://github.com/SQ-Cheng/GermanWords/releases) · [问题与建议](https://github.com/SQ-Cheng/GermanWords/issues) · [Android 使用说明（PDF）](output/pdf/GermanWordsAndroid-User-Guide.pdf)
 
-目前开发人员：SQ-Cheng (Android), freshfish6666 (Windows).
+## 功能
 
-致谢：王老师，以及开发之前版本的同学。
+- 内置 8 份词表、460 个词条及对应录音，也可导入兼容的词库。
+- 支持单单元学习、跨单元混合学习、顺序与乱序浏览。
+- 提供卡片和列表自测，按需揭晓答案；支持星标筛选复习。
+- 支持德语和中文搜索，兼容变音符号及 ß/ss 匹配。
+- 录音支持 0.75×、1×、1.25×、1.5× 语速。
+- 提供昼间、夜间和跟随系统三种主题。
+- Android 支持滑动翻页、拖动学习进度条及学习位置恢复。
 
-[Android APK / Windows 离线包（Beta）](https://github.com/SQ-Cheng/GermanWords/releases/tag/v4.1.0-beta.1) · [Android PDF 使用说明](output/pdf/GermanWordsAndroid-User-Guide.pdf) · [问题与建议](https://github.com/SQ-Cheng/GermanWords/issues)
+## 最新版本与安装
 
-| 目录 | 内容 |
+| 渠道 | 版本 | 说明 |
+| --- | --- | --- |
+| [GitHub 最新预发布版](https://github.com/SQ-Cheng/GermanWords/releases/tag/v4.2.0-beta.3) | **4.2.0-beta.3** | Android APK 与 Windows x64 桌面安装包，支持从清华云盘检查更新 |
+| [清华云盘更新验证版](https://cloud.tsinghua.edu.cn/d/361a8eccb1624c65ae26/) | **4.2.0-beta.4** | 仅递增版本号，无功能改动，用于验证双端更新流程；Android versionCode 为 9 |
+
+以上版本均为 Beta。正式版与历史安装包见 GitHub Releases；预发布版以对应发布页说明为准。
+
+**Android：**下载 APK 后按系统提示安装。应用内更新需要允许此应用安装更新，并由系统确认；覆盖升级须使用相同应用签名。
+
+**Windows：**下载 `GermanWords-Windows-…-x86_64-Setup.exe` 并运行。桌面版使用 Tauri / WebView2，首次安装若缺少 WebView2，安装器会尝试联网下载安装运行环境。当前提供 x64 包。
+
+两端在启动时尝试后台检查更新，成功检查后间隔 24 小时再自动检查；设置中的「检查更新」可立即检查。发现新版本后由用户选择是否下载和安装，断网不影响学习。使用 GitHub beta.3 可验证升级至云盘 beta.4。
+
+旧 Windows HTML 版迁移到桌面版时，需运行新的安装包；可使用发布页提供的迁移 ZIP，在原页面地址导出星标与设置，再导入桌面版。
+
+## 源码与开发
+
+本仓库同时维护 Android 和 Windows 客户端。**主分支当前源码对应 4.1.0-beta.1；4.2.0 桌面版及云盘更新功能位于独立开发分支，尚未合并主分支。**复现已发布版本请检出相应 Git 标签，例如 `v4.2.0-beta.3`，并阅读该版本的构建说明。
+
+主分支目录：
+
+| 目录 | 职责 |
 | --- | --- |
-| `apps/android/` | Android Studio / Gradle 项目，Java 外壳与 WebView 界面 |
-| `apps/windows/` | Windows 浏览器离线版，双击 `De_words_helper.html` 打开 |
-| `shared/words/` | 两端共用的 Excel 词库与录音，唯一资源源目录 |
-| `shared/parser.js` | 两端共用的 XLSX 读取、表头识别与词条解析 |
-| `shared/theme.js`、`shared/theme.css` | 两端共用的主题偏好与昼夜配色 |
-| `shared/playback.js` | 语速偏好保存与有效值校验；各端适配现有播放器 |
-| `shared/audio.js`、`shared/marks.js` | 公共录音索引/匹配与原单元星标存储 |
-| `shared/vocabulary.js` | 搜索匹配、多单元读取与词条来源标识 |
+| `apps/android/` | Android Studio / Gradle 项目，原生宿主与手机学习界面 |
+| `apps/windows/` | Windows 浏览器离线版界面与客户端逻辑 |
+| `shared/words/` | 两端共用的 Excel 词库与录音 |
+| `shared/` | 词表解析、搜索、录音匹配、星标、语速与主题等公共逻辑 |
 | `tools/` | 构建工具 |
-| `tests/` | 解析器、学习引擎测试及真机测试入口 |
-| `output/pdf/` | Android 使用说明 |
-| `artifacts/verification.md` | 历史设备验证记录 |
+| `tests/` | 公共逻辑、浏览器与设备测试入口 |
+| `docs/` | 架构与维护文档 |
+| `artifacts/` | 验证记录 |
+| `output/` | 生成的发布产物及使用说明；构建产物不入库 |
 
-两端均内置 8 份词表、460 个词条及对应录音，安装或解压后可离线学习。Android 开发与使用见 [Android 说明](apps/android/README.md)，更新记录见 [CHANGELOG](apps/android/CHANGELOG.md)。Windows 版用新版 Edge 或 Chrome 打开；直接打开源码页面时，点击「导入文件夹」，选择 `shared/words/`。
+共享层负责数据与通用规则，客户端负责界面、播放及平台能力。修改公共文件后，由构建工具打包至各客户端，无需手动维护副本。结构与维护约定见 [架构说明](docs/architecture.md)，测试环境与入口见 [测试说明](tests/README.md)。
 
-两端默认跟随系统昼夜模式，可在侧栏的「主题」设置中选择「跟随系统／昼间／夜间」，选择自动保存。Android 支持单屏卡片、滑动翻页和拖动底部进度条，保留原有学习模式名称；圆形操作按钮在大字号下保持圆形。
+### 构建主分支
 
-4.1.0-beta.1 支持以下学习功能：
+克隆仓库后，在功能分支中开发。本机 SDK 路径、密钥和构建产物不提交到 Git。
 
-- 在词库勾选至少两个单元，点击「混合学习」，再用「乱序」跨单元学习；再次点击可恢复顺序。直接点单元名称返回单单元。星标按原单元保存，Android 可恢复混合范围、位置与乱序顺序。
-- 搜索当前学习范围中的德语或中文，可与星标筛选和乱序组合。Android 在词库中输入后点「查看」；Windows 在顶部输入。搜索不区分大小写，支持变音符号与 ß/ss；清空后恢复当前范围，搜索词不持久化。
-- 两端侧栏可选 0.75×、1×、1.25×、1.5× 语速，自动保存并应用于当前及后续录音。Windows 普通模式点击卡片即可重播；卡片和列表自测均按需揭晓答案，答案隐藏时不通过音频、例句或背景颜色泄露。
+Android 需要 JDK 17+、Android SDK 35；用 Android Studio 打开 `apps/android/`，或配置 `ANDROID_HOME` 后执行：
 
-全部 GitHub issues、实现方案与验证记录见 [本轮 issue 记录](docs/issues-2026-10-17.md)。课本例句与软件内更新按要求暂缓。
+```powershell
+cd apps/android
+.\gradlew.bat assembleDebug lintDebug
+```
 
-Beta 发布页提供可安装 APK、Windows 离线 ZIP 和 SHA256 校验文件。Windows 解压后双击 HTML，再导入包内的 `words/`。Android beta 使用与历史测试包相同的开发签名，便于覆盖升级；发布构建关闭调试，不包含测试组件。正式发布前应配置独立发布签名。PDF 为早期 Android 版说明，新功能以本 README 为准。
+调试 APK 位于 `apps/android/app/build/outputs/apk/debug/app-debug.apk`。更多说明见 [Android 文档](apps/android/README.md)。
 
-Windows 离线发布包：
+主分支的 Windows 浏览器离线包使用 Python 构建：
 
 ```powershell
 python tools/build-windows.py
 ```
 
-将生成的 `output/windows/` 整个文件夹交给用户，保留 HTML、客户端与公共脚本/样式、`words/`。双击其中的 HTML，导入同目录的 `words/` 即可使用；用户无需 Python。生成目录不入库，每次构建会重新生成。Windows 保留原有学习界面与功能，不增加 Android 的备份和位置恢复功能。
+将生成的 `output/windows/` 整个文件夹保留在一起，双击其中的 HTML，并导入同目录的 `words/`。用户运行此离线包无需 Python。该命令构建浏览器版；4.2.0 桌面安装包请使用对应标签中的构建说明。
 
-从仓库根目录验证公共解析器和 Android 学习引擎（Node.js 22 或更高版本）：
+公共逻辑测试需要 Node.js 22 或更高版本，在仓库根目录执行：
 
 ```powershell
 node tests/test-parser.mjs
@@ -58,25 +83,8 @@ node tests/test-vocabulary.mjs
 node tests/test-marks.mjs
 ```
 
-Android 构建：
+## 开发与致谢
 
-```powershell
-cd apps/android
-.\gradlew.bat assembleDebug lintDebug
-```
+开发者：SQ-Cheng（Android）、freshfish6666（Windows）。
 
-需要 JDK 17+ 与 Android SDK 35；用 Android Studio 打开 `apps/android/` 配置 SDK，或通过 `ANDROID_HOME` 指定 SDK。`local.properties` 不入库。调试 APK 位于 `apps/android/app/build/outputs/apk/debug/app-debug.apk`。发布构建使用 `assembleRelease`，并在签名后发布 APK。
-
-Gradle 自动打包公共脚本、样式和 `shared/words/` 并生成资源索引，更新公共文件无需手动复制。Android 生成资源位于 `apps/android/app/build/generated/sharedAssets/`。
-
-公共解析器只处理文件与数据，不依赖页面或 Android。浏览器默认使用 `DecompressionStream` 解压；Android 在 `mobile.js` 中提供原生解压函数，通过 `WordParser.read(file, inflateRaw)` 传入。两端界面、音频播放、文件导入与学习状态保持各自实现。Windows 发布脚本仅复制公共文件并调整脚本路径。
-
-`vocabulary.js` 组合公共解析器读取所选词表，保留单单元的旧词条 ID，只为混合词条附加单元标识；共享层不访问 Android。语速在浏览器使用 `Audio.playbackRate`，Android 宿主使用 [MediaPlayer PlaybackParams](https://developer.android.com/reference/android/media/MediaPlayer#setPlaybackParams(android.media.PlaybackParams))，不增加音频框架或网络依赖。
-
-本次整理的验证范围见 [共享组件验证记录](artifacts/shared-components-verification.md)。
-
-布局、进度和主题的验证见 [界面验证记录](artifacts/mobile-ui-verification.md)，测试入口和环境要求见 [tests/README](tests/README.md)。测试依赖仅位于 `tests/`，不参与客户端打包。
-
-两个平台在同一 `main` 上开发，通过功能分支修改；构建产物与本机 SDK 路径不入库。
-
-代码层级和维护边界见 [架构说明](docs/architecture.md)；本次 Beta 的检查范围见 [4.1.0 合并与发布验证记录](artifacts/4.1.0-beta.1-verification.md)。
+感谢王老师，以及开发之前版本的同学。
