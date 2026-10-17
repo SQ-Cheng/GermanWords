@@ -71,6 +71,7 @@ function toggleAutoPlay() {
 function saveStudy() {
   if (restoring) return;
   preferences.file = currentFileName;
+  preferences.files = currentBookNames;
   preferences.mode = currentMode;
   preferences.view = currentView;
   preferences.filter = isFilterActive;
@@ -86,9 +87,9 @@ function saveStudy() {
   catch (_) { notify('手机存储不足，无法保存学习进度', 'error'); }
 }
 function paintStudy() {
-  const title = currentFileName ? currentFileName.replace(/_单词汇总\.xlsx$/i, '').replace(/\.xlsx$/i, '') : '选择一份词表';
+  const title = currentBookNames.length > 1 ? '混合学习' : currentFileName ? currentFileName.replace(/_单词汇总\.xlsx$/i, '').replace(/\.xlsx$/i, '') : '选择一份词表';
   document.getElementById('lessonTitle').textContent = title;
-  document.getElementById('lessonCount').textContent = currentFileWords.length + ' 词';
+  document.getElementById('lessonCount').textContent = (currentBookNames.length > 1 ? currentBookNames.length + ' 单元 · ' : '') + currentFileWords.length + ' 词';
   const summary = document.getElementById('searchSummary');
   summary.textContent = searchQuery ? displayWords.length + ' 个匹配词 · 关闭词库查看' : '';
   const progress = document.getElementById('studyProgress');
@@ -208,7 +209,9 @@ async function reloadLibrary(selectImported) {
     const newestBook = selectImported && files.filter(file => file.imported && /\.xlsx$/i.test(file.name)).pop();
     const imported = newestBook && names.find(name => fileMap[name].url === newestBook.url);
     const chosen = imported || (fileMap[preferences.file] ? preferences.file : names[0]);
-    if (chosen) await loadFile(chosen); else openLibrary();
+    const savedBooks = !imported && Array.isArray(preferences.files) && preferences.files.length > 1 && preferences.files.every(name => fileMap[name]) ? preferences.files : null;
+    if (savedBooks) await loadBooks(savedBooks);
+    else if (chosen) await loadFile(chosen); else openLibrary();
   } catch (e) { notify('词库加载失败：' + e.message, 'error'); }
 }
 applyPreferences();

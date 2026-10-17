@@ -112,3 +112,7 @@ tr.marked{border-color:var(--mark)}
 .word-search{display:flex;gap:8px;flex-shrink:0}
 .word-search input{flex:1;min-width:0;min-height:44px;padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--ink);font:inherit;font-size:14px}
 .word-search button{font-size:14px;color:var(--primary-color);padding:8px}
+
+.file-item{display:flex;align-items:center;gap:10px}
+.file-item input{order:-1;width:22px;height:22px;flex-shrink:0;accent-color:var(--primary-color)}
+.mix-button{flex-shrink:0;background:var(--surface-soft);color:var(--primary-color);font-size:14px;margin-bottom:8px}

@@ -206,6 +206,10 @@
 
       #wordSearch { min-width:120px; width:220px; max-width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:20px; background:var(--surface); color:var(--ink); font:inherit; }
 
+      .file-item { display:flex; align-items:center; gap:10px; }
+      .file-item input { order:-1; width:20px; height:20px; flex-shrink:0; accent-color:var(--primary-color); }
+      .mix-button { margin-bottom:10px; flex-shrink:0; }
+
       .mode-select {
         padding-right: 30px;
         border-color: var(--primary-color);
@@ -543,6 +547,7 @@
         <input type="file" id="fileInput" multiple accept=".xlsx" />
       </div>
 
+      <button id="mixBooks" class="mix-button" onclick="loadSelectedBooks()" disabled>混合学习</button>
       <ul id="fileList" class="file-list">
         <li
           style="
@@ -570,7 +575,7 @@
 
     <div class="main-content">
       <div class="top-bar">
-        <input id="wordSearch" type="search" placeholder="搜索当前词表：德语 / 中文" aria-label="搜索当前词表中的单词" oninput="searchWords(this.value)" />
+        <input id="wordSearch" type="search" placeholder="搜索当前学习范围：德语 / 中文" aria-label="搜索当前学习范围中的单词" oninput="searchWords(this.value)" />
         <select id="modeSelect" class="mode-select" onchange="changeMode()">
           <option value="normal">📖 普通模式</option>
           <option value="test-zh">🇨🇳 中文自测</option>
@@ -691,20 +696,24 @@
 
     <script src="../../shared/parser.js"></script>
     <script>
-      const { normPath, parseSheets } = WordParser;
+      const { normPath } = WordParser;
 
       // === 全局变量 ===
       let currentFileWords = []; // 当前文件的全部词条
+      let orderedWords = [];
+      let isShuffled = false;
       let displayWords = []; // 当前展示列表（受筛选 / 乱序影响）
       let currentIndex = 0;
       let isFilterActive = false;
       let searchQuery = '';
       let currentView = "card";
       let currentFileName = "";
+      let currentBookNames = [];
+      let loadSequence = 0;
       let currentMode = "normal"; // 'normal', 'test-zh', 'test-de'
       let currentAudio = null; // 当前正在播放的音频实例
       let isRevealed = false; // 自测模式下是否已显示答案
-      let fileMap = {};
+      let fileMap = Object.create(null);
       let audioIndex = {
         byFull: new Map(),
         byTail: new Map(),
@@ -834,9 +843,8 @@
       // 老师自己录的音频可能是 m4a / wav 等格式，这里一并接受
       const AUDIO_EXT = /\.(mp3|m4a|wav|ogg|oga|opus|aac|flac)$/i;
 
-      function buildAudioIndex(files) {
-        for (const url of blobUrls.values()) URL.revokeObjectURL(url);
-        blobUrls = new Map();
+      function makeAudioIndex(files) {
+
         const byFull = new Map();
         const byTail = new Map();
         const byBase = new Map();
@@ -860,7 +868,7 @@
             byFold.get(fold).push(file);
           }
         }
-        audioIndex = {
+        return {
           byFull: byFull,
           byTail: byTail,
           byBase: byBase,
@@ -869,6 +877,17 @@
         };
       }
 
+      function buildAudioIndex(files) {
+        for (const url of blobUrls.values()) URL.revokeObjectURL(url);
+        blobUrls = new Map();
+        audioIndex = makeAudioIndex(files);
+        audioIndex.byRoot = new Map();
+        const roots = new Set(files.filter(file => /\.xlsx$/i.test(file.name)).map(Vocabulary.sourceRoot));
+        for (const root of roots) {
+          const members = files.filter(file => !root || normPath(file.webkitRelativePath || file.name).startsWith(root + '/'));
+          audioIndex.byRoot.set(root, makeAudioIndex(members));
+        }
+      }
       // 发音列留空时，用德语词条猜音频文件名（去掉 * 和 /）
       function guessAudioNames(german) {
         const g = String(german || "").trim();
@@ -911,44 +930,45 @@
         return list[0];
       }
 
-      function pickByBase(base, word) {
-        return pickFrom(audioIndex.byBase.get(base), word);
+      function pickByBase(base, word, index) {
+        return pickFrom((index || audioIndex).byBase.get(base), word);
       }
 
-      function pickByStem(stem, word) {
-        return pickFrom(audioIndex.byStem.get(stem), word);
+      function pickByStem(stem, word, index) {
+        return pickFrom((index || audioIndex).byStem.get(stem), word);
       }
 
-      function pickByFold(name, word) {
-        return pickFrom(audioIndex.byFold.get(foldName(name)), word);
+      function pickByFold(name, word, index) {
+        return pickFrom((index || audioIndex).byFold.get(foldName(name)), word);
       }
 
-      function findAudioFile(word) {
+      function findAudioFile(word, index) {
+        index = index || (word.sourceRoot && audioIndex.byRoot && audioIndex.byRoot.get(word.sourceRoot)) || audioIndex;
         const declared = normPath(word.pronounce);
         if (declared) {
-          if (audioIndex.byFull.has(declared)) return audioIndex.byFull.get(declared);
+          if (index.byFull.has(declared)) return index.byFull.get(declared);
           const segs = declared.split("/");
           const tail = segs.slice(-2).join("/");
-          if (audioIndex.byTail.has(tail)) return audioIndex.byTail.get(tail);
-          const hit = pickByBase(segs[segs.length - 1], word);
+          if (index.byTail.has(tail)) return index.byTail.get(tail);
+          const hit = pickByBase(segs[segs.length - 1], word, index);
           if (hit) return hit;
         }
         const names = guessAudioNames(word.german);
         for (const name of names) {
-          const hit = pickByBase(name, word);
+          const hit = pickByBase(name, word, index);
           if (hit) return hit;
         }
         // 再按「不带扩展名的文件名」找一遍，这样 m4a / wav 录的也能认出来
         for (const name of names) {
-          const hit = pickByStem(name.replace(/\.[^.]+$/, ""), word);
+          const hit = pickByStem(name.replace(/\.[^.]+$/, ""), word, index);
           if (hit) return hit;
         }
         // 最后按「去掉变音符号」再找一遍
         for (const name of names) {
-          const hit = pickByFold(name.replace(/\.[^.]+$/, ""), word);
+          const hit = pickByFold(name.replace(/\.[^.]+$/, ""), word, index);
           if (hit) return hit;
         }
-        return null;
+        return index !== audioIndex ? findAudioFile(word, audioIndex) : null;
       }
 
       function hasAudio(word) {
@@ -1011,6 +1031,7 @@
 
       // === 核心逻辑 ===
       function handleFiles(files) {
+        ++loadSequence;
         const all = Array.from(files);
         buildAudioIndex(all);
 
@@ -1029,19 +1050,31 @@
           return /\.xls$/i.test(f.name);
         });
 
-        fileMap = {};
+        fileMap = Object.create(null);
         const fileListEl = document.getElementById("fileList");
         fileListEl.innerHTML = "";
         for (const file of bookFiles) {
-          fileMap[file.name] = file;
+          let key = file.name;
+          if (fileMap[key]) key = file.name + " · " + (file.webkitRelativePath || "导入词表");
+          fileMap[key] = file;
           const li = document.createElement("li");
           li.className = "file-item";
-          li.textContent = file.name;
+          li.dataset.fileName = key;
+          li.textContent = key;
           li.onclick = function () {
-            loadFile(file.name);
+            loadFile(key);
           };
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.value = key;
+          checkbox.setAttribute('aria-label', '选择 ' + key + ' 用于混合学习');
+          checkbox.onclick = event => event.stopPropagation();
+          checkbox.onchange = updateMixSelection;
+          li.appendChild(checkbox);
           fileListEl.appendChild(li);
         }
+
+        updateMixSelection();
 
         if (bookFiles.length === 0) {
           fileListEl.innerHTML =
@@ -1072,42 +1105,54 @@
         }
       }
 
-      async function loadFile(fileName) {
-        document.querySelectorAll(".file-item").forEach(function (el) {
-          el.classList.toggle("active", el.textContent === fileName);
-        });
-        currentFileName = fileName;
+      function updateMixSelection() {
+        const count = document.querySelectorAll('#fileList input:checked').length;
+        const button = document.getElementById('mixBooks');
+        button.disabled = count < 2;
+        button.textContent = count ? '混合学习（' + count + '）' : '混合学习';
+      }
+
+      function loadSelectedBooks() {
+        const names = Array.from(document.querySelectorAll('#fileList input:checked'), input => input.value);
+        return loadBooks(names);
+      }
+
+      function loadFile(fileName) { return loadBooks([fileName]); }
+
+      async function loadBooks(names) {
+        names = Object.keys(fileMap).filter(name => names.includes(name));
+        if (!names.length) return;
+        const sequence = ++loadSequence;
+        pauseStudyAudio();
         try {
-          const sheets = await WordParser.read(fileMap[fileName]);
-          const parsed = parseSheets(sheets);
-          if (parsed.words.length === 0) {
-            notify(
-              "「" +
-                fileName +
-                "」里没读到单词。请确认第一行是表头（德语 / 汉语 / 词性…）。",
-              "error"
-            );
-            return;
-          }
+          const parsed = await Vocabulary.readBooks(fileMap, names);
+          if (sequence !== loadSequence) return;
+          currentBookNames = names;
+          currentFileName = Vocabulary.selectionKey(names);
           processData(parsed.words);
-          parsed.warnings.forEach(function (w) {
-            notify(w, "warn");
+          document.querySelectorAll('.file-item').forEach(el => {
+            el.classList.toggle('active', names.includes(el.dataset.fileName));
+            const checkbox = el.querySelector('input');
+            if (checkbox) checkbox.checked = names.includes(el.dataset.fileName);
           });
+          updateMixSelection();
+          parsed.warnings.forEach(warning => notify(warning, 'warn'));
+          return true;
         } catch (err) {
-          notify(
-            "读取「" + fileName + "」失败：" + (err && err.message ? err.message : err),
-            "error"
-          );
+          if (sequence === loadSequence) notify('读取词表失败：' + err.message, 'error');
         }
       }
 
       function processData(words) {
         currentFileWords = words;
-        const savedMarks = store.marks(currentFileName);
-        currentFileWords.forEach(function (w) {
-          w.marked = savedMarks.indexOf(w.german) !== -1;
+        orderedWords = words.slice();
+        isShuffled = false;
+        document.getElementById('btnShuffle').textContent = '乱序';
+        document.getElementById('btnShuffle').classList.remove('active');
+        currentFileWords.forEach(word => {
+          word.sourceBook = word.sourceBook || currentFileName;
+          word.marked = store.marks(word.sourceBook).includes(word.german);
         });
-
         document.getElementById("emptyState").style.display = "none";
         currentIndex = 0;
         isRevealed = false;
@@ -1119,7 +1164,7 @@
       // keepIndex：在“只看星标”里取消星标时不要跳回第一张
       function refreshDisplayList(keepIndex) {
         pauseStudyAudio();
-        let baseList = currentFileWords.slice();
+        let baseList = orderedWords.slice();
 
         // 筛选
         if (isFilterActive) {
@@ -1138,27 +1183,19 @@
       }
 
       function shuffleCurrentList() {
-        if (displayWords.length === 0) return;
-
-        // Fisher-Yates Shuffle
-        for (let i = displayWords.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          const tmp = displayWords[i];
-          displayWords[i] = displayWords[j];
-          displayWords[j] = tmp;
+        if (!currentFileWords.length) return;
+        isShuffled = !isShuffled;
+        orderedWords = currentFileWords.slice();
+        if (isShuffled) {
+          for (let i = orderedWords.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [orderedWords[i], orderedWords[j]] = [orderedWords[j], orderedWords[i]];
+          }
         }
-
-        currentIndex = 0;
-        isRevealed = false;
-        lastAutoKey = null;
-        updateUI();
-
-        const btn = document.getElementById("btnShuffle");
-        const originalText = btn.innerText;
-        btn.innerText = "✅ 已乱序";
-        setTimeout(function () {
-          btn.innerText = originalText;
-        }, 1000);
+        refreshDisplayList();
+        const button = document.getElementById('btnShuffle');
+        button.textContent = isShuffled ? '恢复顺序' : '乱序';
+        button.classList.toggle('active', isShuffled);
       }
 
       // === 模式与视图 ===
@@ -1500,13 +1537,11 @@
 
       function toggleMark(wordObj) {
         wordObj.marked = !wordObj.marked;
-
-        const original = currentFileWords.find(function (w) {
-          return w.id === wordObj.id;
+        const book = wordObj.sourceBook || currentFileName;
+        currentFileWords.forEach(word => {
+          if ((word.sourceBook || currentFileName) === book && word.german === wordObj.german) word.marked = wordObj.marked;
         });
-        if (original) original.marked = wordObj.marked;
-
-        store.setMark(currentFileName, wordObj.german, wordObj.marked);
+        store.setMark(book, wordObj.german, wordObj.marked);
 
         if (isFilterActive && !wordObj.marked) {
           refreshDisplayList(true);
@@ -1521,7 +1556,7 @@
 
         // 焦点在输入控件里时不抢按键
         const tag = (e.target && e.target.tagName) || "";
-        if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+        if (["INPUT", "SELECT", "TEXTAREA", "BUTTON"].includes(tag)) return;
 
         const key = String(e.key || "").toLowerCase();
 
