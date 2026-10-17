@@ -2,7 +2,7 @@
 
 Android 与 Windows 离线版共用 [GermanWords 仓库](https://github.com/SQ-Cheng/GermanWords)，两个客户端分别维护界面与平台功能。项目根文件夹为 `GermanWords/`；Android Studio 仍打开其中的 `apps/android/`。
 
-本开发分支：**4.2.0-beta.3**（Android 源码 versionCode 8），Windows 已迁移为 Tauri 2 / WebView2 桌面程序。GitHub 已发布版本仍为 4.1.0-beta.1，云盘 Android 与旧 Windows 测试版仍为 4.2.0-beta.2。
+当前最新预发布版：**Android / Windows 4.2.0-beta.3**（Android versionCode 8）。Windows 已迁移为 Tauri 2 / WebView2 桌面程序。本次从 `codex/windows-desktop-migration` 分支发布，**尚未合并 main**。云盘 Android 与旧 Windows 原型仍为 4.2.0-beta.2。
 
 Windows 桌面安装包与测试更新见 [清华云盘](https://cloud.tsinghua.edu.cn/d/361a8eccb1624c65ae26/)；从桌面 beta.2 安装包起步，可测试升级到 beta.3。首次从旧 HTML 版迁移需运行新安装包，并导入旧星标/设置。详见 [Windows 开发与迁移](apps/windows/README.md) 和 [更新维护](docs/updates.md)。
 
@@ -10,7 +10,7 @@ Windows 桌面安装包与测试更新见 [清华云盘](https://cloud.tsinghua.
 
 致谢：王老师，以及开发之前版本的同学。
 
-[Android APK / Windows 离线包（Beta）](https://github.com/SQ-Cheng/GermanWords/releases/tag/v4.1.0-beta.1) · [Android PDF 使用说明](output/pdf/GermanWordsAndroid-User-Guide.pdf) · [问题与建议](https://github.com/SQ-Cheng/GermanWords/issues)
+[Android APK / Windows 桌面安装包（Beta）](https://github.com/SQ-Cheng/GermanWords/releases/tag/v4.2.0-beta.3) · [Android PDF 使用说明](output/pdf/GermanWordsAndroid-User-Guide.pdf) · [问题与建议](https://github.com/SQ-Cheng/GermanWords/issues)
 
 | 目录 | 内容 |
 | --- | --- |
@@ -40,7 +40,7 @@ Windows 桌面安装包与测试更新见 [清华云盘](https://cloud.tsinghua.
 
 全部 GitHub issues、实现方案与验证记录见 [本轮 issue 记录](docs/issues-2026-10-17.md)。课本例句继续暂缓；软件内更新在当前分支中测试。
 
-Beta 发布页提供可安装 APK、Windows 离线 ZIP 和 SHA256 校验文件。该历史版本的 Windows ZIP 解压后启动；新桌面版使用 Setup.exe 安装。Android beta 使用与历史测试包相同的开发签名，便于覆盖升级；发布构建关闭调试，不包含测试组件。正式发布前应配置独立发布签名。PDF 为早期 Android 版说明，新功能以本 README 为准。
+当前 Beta 发布页提供 Android APK、Windows x64 Setup.exe、对应更新签名、旧版数据迁移 ZIP 和 SHA256 校验文件。Windows 通过安装包安装；迁移 ZIP 只用于导出旧浏览器数据。Android beta 使用与历史测试包相同的开发签名，便于覆盖升级；发布构建关闭调试，不包含测试组件。正式发布前应配置独立发布签名。PDF 为早期 Android 版说明，新功能以本 README 为准。
 
 Windows 桌面开发和打包：
 
@@ -88,3 +88,5 @@ Gradle 自动打包公共脚本、样式和 `shared/words/` 并生成资源索�
 代码层级和维护边界见 [架构说明](docs/architecture.md)；本次 Beta 的检查范围见 [4.1.0 合并与发布验证记录](artifacts/4.1.0-beta.1-verification.md)。
 
 Windows 迁移的两轮架构审查见 [迁移设计](docs/windows-desktop-migration.md)，安装与云盘升级验证见 [桌面验证记录](artifacts/windows-desktop-verification.md)。
+
+4.2.0-beta.3 的打包和发布边界见 [预发布记录](artifacts/4.2.0-beta.3-release.md)。
