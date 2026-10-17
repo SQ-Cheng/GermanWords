@@ -38,6 +38,8 @@ public class MainActivity extends Activity {
     WebView web;
     private FrameLayout root;
     private MediaPlayer player;
+    private float playbackRate = 1f;
+    private boolean audioPrepared;
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private volatile boolean destroyed;
 
@@ -150,6 +152,14 @@ public class MainActivity extends Activity {
     private void js(String code) { runOnUiThread(() -> { if (!destroyed) web.evaluateJavascript(code, null); }); }
     private void notice(String text, String kind) { js("notify(" + JSONObject.quote(text) + "," + JSONObject.quote(kind) + ")"); }
     public class AndroidBridge {
+        @JavascriptInterface public void setPlaybackRate(double rate) {
+            float valid = rate==0.75 || rate==1 || rate==1.25 || rate==1.5 ? (float)rate : 1f;
+            runOnUiThread(() -> {
+                playbackRate=valid;
+                try { if(player!=null && audioPrepared && player.isPlaying()) applyPlaybackRate(player); }
+                catch(IllegalStateException ignored) { /* An asynchronous decoder error may have completed first. */ }
+            });
+        }
         @JavascriptInterface public boolean isSystemDark() { return MainActivity.this.isSystemDark(); }
         @JavascriptInterface public void setDarkMode(boolean dark) { runOnUiThread(() -> applyDarkMode(dark)); }
         @JavascriptInterface public String manifest() {
@@ -333,13 +343,23 @@ public class MainActivity extends Activity {
                 try(AssetFileDescriptor fd=getAssets().openFd(path.substring(8))) { player.setDataSource(fd.getFileDescriptor(),fd.getStartOffset(),fd.getLength()); }
             } else if(path.startsWith("/library/")) player.setDataSource(privateFile(path.substring(9)).getPath());
             else throw new IOException("找不到本地音频");
-            player.setOnPreparedListener(p -> { if (p == player) p.start(); });
+            player.setOnPreparedListener(p -> {
+                if (p == player) {
+                    audioPrepared=true;
+                    applyPlaybackRate(p);
+                    p.start();
+                }
+            });
             player.setOnCompletionListener(p -> { if(p==player) releaseAudio(); });
             player.setOnErrorListener((p,what,extra) -> { if (p == player) { releaseAudio(); notice("音频无法播放，请检查文件格式", "error"); } return true; });
             player.prepareAsync();
         } catch(Exception e) { releaseAudio(); notice("音频加载失败："+e.getMessage(),"error"); }
     }
-    private void releaseAudio() { if(player!=null) { player.release(); player=null; } }
+    private void applyPlaybackRate(MediaPlayer audio) {
+        try { audio.setPlaybackParams(new android.media.PlaybackParams().setSpeed(playbackRate).setPitch(1f)); }
+        catch(IllegalArgumentException | IllegalStateException e) { notice("设备不支持此语速", "warn"); }
+    }
+    private void releaseAudio() { if(player!=null) { player.release(); player=null; } audioPrepared=false; }
     @Override public void onBackPressed() { web.evaluateJavascript("typeof handleAndroidBack==='function' && handleAndroidBack()", value -> { if(!"true".equals(value)) super.onBackPressed(); }); }
     @Override protected void onPause() { super.onPause(); web.evaluateJavascript("if(typeof pauseStudyAudio==='function')pauseStudyAudio()",null); releaseAudio(); web.onPause(); }
     @Override protected void onResume() { super.onResume(); if(web!=null) web.onResume(); }

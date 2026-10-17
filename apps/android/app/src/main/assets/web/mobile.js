@@ -6,6 +6,13 @@ function syncSystemTheme() {
   if (window.Android) AppTheme.setSystemDark(Android.isSystemDark());
 }
 syncSystemTheme();
+function changePlaybackRate(value) {
+  const rate = Playback.setRate(value);
+  document.getElementById('playbackRate').value = String(rate);
+  if (currentAudio) currentAudio.playbackRate = rate;
+  if (window.Android) Android.setPlaybackRate(rate);
+}
+changePlaybackRate(Playback.getRate());
 
 const PREF_KEY = 'german_android_preferences_v1';
 let preferences;
@@ -15,6 +22,7 @@ function normalizePreferences(value) {
   const result = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const books = result.books && typeof result.books === 'object' && !Array.isArray(result.books) ? result.books : {};
   result.books = Object.assign(Object.create(null), books);
+  result.files = Array.isArray(result.files) ? result.files.filter(name => typeof name === 'string') : [];
   return result;
 }
 preferences = normalizePreferences(preferences);
@@ -65,13 +73,14 @@ function toggleAutoPlay() {
 function saveStudy() {
   if (restoring) return;
   preferences.file = currentFileName;
+  preferences.files = currentBookNames;
   preferences.mode = currentMode;
   preferences.view = currentView;
   preferences.filter = isFilterActive;
   preferences.autoPlay = autoPlayEnabled;
   if (currentFileName && currentFileWords.length) {
     preferences.books[currentFileName] = {
-      word: displayWords[currentIndex] && displayWords[currentIndex].id,
+      word: displayWords[currentIndex] ? displayWords[currentIndex].id : (preferences.books[currentFileName] || {}).word,
       shuffled: isShuffled,
       order: isShuffled ? orderedWords.map(w => w.id) : undefined
     };
@@ -80,9 +89,11 @@ function saveStudy() {
   catch (_) { notify('手机存储不足，无法保存学习进度', 'error'); }
 }
 function paintStudy() {
-  const title = currentFileName ? currentFileName.replace(/_单词汇总\.xlsx$/i, '').replace(/\.xlsx$/i, '') : '选择一份词表';
+  const title = currentBookNames.length > 1 ? '混合学习' : currentFileName ? currentFileName.replace(/_单词汇总\.xlsx$/i, '').replace(/\.xlsx$/i, '') : '选择一份词表';
   document.getElementById('lessonTitle').textContent = title;
-  document.getElementById('lessonCount').textContent = currentFileWords.length + ' 词';
+  document.getElementById('lessonCount').textContent = (currentBookNames.length > 1 ? currentBookNames.length + ' 单元 · ' : '') + currentFileWords.length + ' 词';
+  const summary = document.getElementById('searchSummary');
+  summary.textContent = searchQuery ? displayWords.length + ' 个匹配词 · 关闭词库查看' : '';
   const progress = document.getElementById('studyProgress');
   progress.max = Math.max(0, displayWords.length - 1);
   progress.value = currentIndex;
@@ -200,7 +211,9 @@ async function reloadLibrary(selectImported) {
     const newestBook = selectImported && files.filter(file => file.imported && /\.xlsx$/i.test(file.name)).pop();
     const imported = newestBook && names.find(name => fileMap[name].url === newestBook.url);
     const chosen = imported || (fileMap[preferences.file] ? preferences.file : names[0]);
-    if (chosen) await loadFile(chosen); else openLibrary();
+    const savedBooks = !imported && Array.isArray(preferences.files) && preferences.files.length > 1 && preferences.files.every(name => fileMap[name]) ? preferences.files : null;
+    if (savedBooks) await loadBooks(savedBooks);
+    else if (chosen) await loadFile(chosen); else openLibrary();
   } catch (e) { notify('词库加载失败：' + e.message, 'error'); }
 }
 applyPreferences();

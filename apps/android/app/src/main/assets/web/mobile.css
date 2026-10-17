@@ -63,6 +63,7 @@ button:disabled{opacity:.3;cursor:default}button:active:not(:disabled){transform
 .file-item{padding:14px;border-radius:12px;margin-bottom:5px;line-height:1.6;font-size:14px;overflow-wrap:anywhere;cursor:pointer;border:1px solid transparent}
 .file-item.active{background:var(--surface-soft);border-color:var(--border);color:var(--primary-color);font-weight:600}
 .sidebar-status{color:var(--muted);font-size:12px;padding:12px 0}
+.sidebar-status:empty{display:none}
 .library-footer{border-top:1px solid var(--border);padding-top:10px;flex-shrink:0}
 .library-footer button{font-size:14px;padding-left:0;color:var(--primary-color)}
 .library-footer p{font-size:12px;color:var(--muted);line-height:1.7;margin:6px 0}
@@ -108,3 +109,11 @@ tr.marked{border-color:var(--mark)}
 .large-text .card-example{font-size:13px;line-height:1.4;margin-top:6px}
 .large-text .mode-select{font-size:12px}
 @media(max-width:350px){.large-text .top-bar{flex-wrap:wrap}.large-text .mode-select{flex:none;width:100%}}
+
+.word-search{display:flex;gap:8px;flex-shrink:0}
+.word-search input{flex:1;min-width:0;min-height:44px;padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--ink);font:inherit;font-size:14px}
+.word-search button{font-size:14px;color:var(--primary-color);padding:8px}
+
+.file-item{display:flex;align-items:center;gap:10px}
+.file-item input{order:-1;width:22px;height:22px;flex-shrink:0;accent-color:var(--primary-color)}
+.mix-button{flex-shrink:0;background:var(--surface-soft);color:var(--primary-color);font-size:14px;margin-bottom:8px}

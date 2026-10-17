@@ -1,5 +1,4 @@
 
-      const { normPath, parseSheets } = WordParser;
 
       // === 全局变量 ===
       let currentFileWords = []; // 当前文件的全部词条
@@ -9,24 +8,21 @@
       let displayWords = []; // 当前展示列表（受筛选 / 乱序影响）
       let currentIndex = 0;
       let isFilterActive = false;
+      let searchQuery = '';
       let currentView = "card";
       let currentFileName = "";
+      let currentBookNames = [];
       let currentMode = "normal"; // 'normal', 'test-zh', 'test-de'
       let currentAudio = null; // 当前正在播放的音频实例
       let isRevealed = false; // 自测模式下是否已显示答案
       let fileMap = Object.create(null);
       let loadSequence = 0;
-      let audioIndex = {
-        byFull: new Map(),
-        byTail: new Map(),
-        byBase: new Map(),
-        byStem: new Map(),
-      };
+      let audioIndex = WordAudio.build([]);
       let blobUrls = new Map(); // File -> blob: URL（同一个文件只创建一次）
       let autoPlayTimer = null; // 自动朗读的延时器（切卡时要先取消）
       let lastAutoKey = null; // 上一次已自动朗读过的“卡片状态”
       let audioUnlocked = false; // 用户是否已经交互过（浏览器自动播放策略）
-      const STORAGE_KEY = "german_app_memory";
+      const STORAGE_KEY = MarkStore.key;
 
       // === 统一的消息提示（替代原来只写 console / 弹 alert 的做法） ===
       function notify(message, kind) {
@@ -47,78 +43,7 @@
         }, 10000);
       }
 
-      // 兼容变音字符、不同 Unicode 形式及解压工具改过的文件名。
-      function foldName(s) {
-        return String(s || "")
-          .toLowerCase()
-          .normalize("NFC")
-          .replace(/ä/g, "a")
-          .replace(/ö/g, "o")
-          .replace(/ü/g, "u")
-          .replace(/ß/g, "ss")
-          .replace(/[^a-z0-9]/g, "");
-      }
-
-      // === 进度存储：localStorage 不可用时降级到内存，并明确告知用户 ===
-      const store = (function () {
-        const memory = Object.create(null);
-        let usable = false;
-        try {
-          window.localStorage.setItem("__probe__", "1");
-          window.localStorage.removeItem("__probe__");
-          usable = true;
-        } catch (e) {
-          usable = false;
-        }
-
-        function readAll() {
-          try {
-            const raw = usable
-              ? window.localStorage.getItem(STORAGE_KEY)
-              : memory[STORAGE_KEY];
-            if (!raw) return {};
-            const data = JSON.parse(raw);
-            return data && typeof data === "object" && !Array.isArray(data) ? data : {};
-          } catch (e) {
-            return {};
-          }
-        }
-
-        function writeAll(data) {
-          const raw = JSON.stringify(data);
-          if (usable) {
-            try {
-              window.localStorage.setItem(STORAGE_KEY, raw);
-              return true;
-            } catch (e) {
-              usable = false;
-            }
-          }
-          memory[STORAGE_KEY] = raw;
-          return false;
-        }
-
-        return {
-          marks: function (fileName) {
-            const list = readAll()[fileName];
-            return Array.isArray(list) ? list : [];
-          },
-          setMark: function (fileName, word, isMarked) {
-            const all = readAll();
-            if (!Array.isArray(all[fileName])) all[fileName] = [];
-            const list = all[fileName];
-            const at = list.indexOf(word);
-            if (isMarked && at === -1) list.push(word);
-            else if (!isMarked && at !== -1) list.splice(at, 1);
-            if (!writeAll(all)) {
-              notify(
-                "无法保存星标，请检查手机存储空间。",
-                "warn"
-              );
-            }
-          },
-        };
-      })();
+      const store = MarkStore.create(() => notify('无法保存星标，请检查手机存储空间。', 'warn'));
 
       // 浏览器要求先有用户交互才允许出声；记录一次即可
       ["pointerdown", "touchstart", "keydown"].forEach(function (type) {
@@ -131,138 +56,13 @@
         );
       });
 
-      // === 音频索引：按文件夹里的真实文件建索引，用来修正路径大小写等问题 ===
-      // 老师自己录的音频可能是 m4a / wav 等格式，这里一并接受
-      const AUDIO_EXT = /\.(mp3|m4a|wav|ogg|oga|opus|aac|flac)$/i;
-
-      function makeAudioIndex(files) {
-        
-        const byFull = new Map();
-        const byTail = new Map();
-        const byBase = new Map();
-        const byStem = new Map(); // 去掉扩展名的文件名，用于跨格式匹配
-        const byFold = new Map(); // 再去掉变音符号，兜住文件名被改动过的情况
-        for (const file of files) {
-          if (!AUDIO_EXT.test(file.name)) continue;
-          const rel = normPath(file.webkitRelativePath || file.name);
-          const segs = rel.split("/");
-          byFull.set(rel, file);
-          byTail.set(segs.slice(-2).join("/"), file);
-          const base = segs[segs.length - 1];
-          if (!byBase.has(base)) byBase.set(base, []);
-          byBase.get(base).push(file);
-          const stem = base.replace(/\.[^.]+$/, "");
-          if (!byStem.has(stem)) byStem.set(stem, []);
-          byStem.get(stem).push(file);
-          const fold = foldName(stem);
-          if (fold) {
-            if (!byFold.has(fold)) byFold.set(fold, []);
-            byFold.get(fold).push(file);
-          }
-        }
-        return {
-          byFull: byFull,
-          byTail: byTail,
-          byBase: byBase,
-          byStem: byStem,
-          byFold: byFold,
-        };
-      }
-
       function buildAudioIndex(files) {
+        pauseStudyAudio();
         for (const url of blobUrls.values()) URL.revokeObjectURL(url);
         blobUrls = new Map();
-        audioIndex = makeAudioIndex(files);
-        audioIndex.byRoot = new Map();
-        const groups = new Map();
-        for (const file of files) if (file.root) {
-          if (!groups.has(file.root)) groups.set(file.root, []);
-          groups.get(file.root).push(file);
-        }
-        for (const [root, members] of groups) audioIndex.byRoot.set(root, makeAudioIndex(members));
+        audioIndex = WordAudio.build(files);
       }
-      // 发音列留空时，用德语词条猜音频文件名（去掉 * 和 /）
-      function guessAudioNames(german) {
-        const g = String(german || "").trim();
-        const out = [];
-        function add(value) {
-          const s = String(value || "").trim();
-          if (!s) return;
-          const name = (s + ".mp3").toLowerCase();
-          if (out.indexOf(name) === -1) out.push(name);
-        }
-        add(g);
-        add(g.replace(/\*/g, ""));
-        add(g.replace(/[*/]/g, ""));
-        add(g.replace(/\*/g, "").replace(/\//g, ""));
-        add(g.replace(/\*/g, "").replace(/\//g, " "));
-        // 德语里 "/" 有两种含义：可分动词（vor/haben，去掉斜杠才是文件名）
-        // 和异体写法（gern/gerne，实际文件常只取其中一段）。后一种再补两个候选。
-        const parts = g.replace(/\*/g, "").split("/");
-        if (parts.length > 1) {
-          add(parts[0]);
-          add(parts[1]);
-        }
-        return out;
-      }
-
-      // 同名文件有多个时，优先选「和这个单元在同一个目录」的那个
-      function pickFrom(list, word) {
-        if (!list || list.length === 0) return null;
-        if (list.length === 1) return list[0];
-        if (word && word.unitPrefix) {
-          const hit = list.find(function (f) {
-            return (
-              normPath(f.webkitRelativePath || f.name).indexOf(
-                word.unitPrefix
-              ) !== -1
-            );
-          });
-          if (hit) return hit;
-        }
-        return list[0];
-      }
-
-      function pickByBase(base, word, index) {
-        return pickFrom((index || audioIndex).byBase.get(base), word);
-      }
-
-      function pickByStem(stem, word, index) {
-        return pickFrom((index || audioIndex).byStem.get(stem), word);
-      }
-
-      function pickByFold(name, word, index) {
-        return pickFrom((index || audioIndex).byFold.get(foldName(name)), word);
-      }
-
-      function findAudioFile(word, index) {
-        index = index || (word.sourceRoot && audioIndex.byRoot && audioIndex.byRoot.get(word.sourceRoot)) || audioIndex;
-        const declared = normPath(word.pronounce);
-        if (declared) {
-          if (index.byFull.has(declared)) return index.byFull.get(declared);
-          const segs = declared.split("/");
-          const tail = segs.slice(-2).join("/");
-          if (index.byTail.has(tail)) return index.byTail.get(tail);
-          const hit = pickByBase(segs[segs.length - 1], word, index);
-          if (hit) return hit;
-        }
-        const names = guessAudioNames(word.german);
-        for (const name of names) {
-          const hit = pickByBase(name, word, index);
-          if (hit) return hit;
-        }
-        // 再按「不带扩展名的文件名」找一遍，这样 m4a / wav 录的也能认出来
-        for (const name of names) {
-          const hit = pickByStem(name.replace(/\.[^.]+$/, ""), word, index);
-          if (hit) return hit;
-        }
-        // 最后按「去掉变音符号」再找一遍
-        for (const name of names) {
-          const hit = pickByFold(name.replace(/\.[^.]+$/, ""), word, index);
-          if (hit) return hit;
-        }
-        return index !== audioIndex ? findAudioFile(word, audioIndex) : null;
-      }
+      function findAudioFile(word) { return WordAudio.find(word, audioIndex); }
 
       function hasAudio(word) {
         return !!findAudioFile(word);
@@ -299,6 +99,7 @@
         }
         if (window.Android) { Android.play(new URL(src.url, location.href).href); return; }
         const audio = new Audio(src.url);
+        audio.playbackRate = Playback.getRate();
         audio.addEventListener(
           "error",
           function () {
@@ -320,6 +121,7 @@
 
       // === 核心逻辑 ===
       function handleFiles(files) {
+        ++loadSequence;
         const all = Array.from(files);
         buildAudioIndex(all);
 
@@ -352,8 +154,17 @@
           li.onclick = function () {
             loadFile(key);
           };
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.value = key;
+          checkbox.setAttribute('aria-label', '选择 ' + key + ' 用于混合学习');
+          checkbox.onclick = event => event.stopPropagation();
+          checkbox.onchange = updateMixSelection;
+          li.appendChild(checkbox);
           fileListEl.appendChild(li);
         }
+
+        updateMixSelection();
 
         if (bookFiles.length === 0) {
           fileListEl.innerHTML =
@@ -384,56 +195,57 @@
         }
       }
 
-      async function loadFile(fileName) {
+      function updateMixSelection() {
+        const count = document.querySelectorAll('#fileList input:checked').length;
+        const button = document.getElementById('mixBooks');
+        button.disabled = count < 2;
+        button.textContent = count ? '混合学习（' + count + '）' : '混合学习';
+      }
+
+      function loadSelectedBooks() {
+        const names = Array.from(document.querySelectorAll('#fileList input:checked'), input => input.value);
+        return loadBooks(names);
+      }
+
+      function loadFile(fileName) { return loadBooks([fileName]); }
+
+      async function loadBooks(names) {
+        names = Object.keys(fileMap).filter(name => names.includes(name));
+        if (!names.length) return;
         const sequence = ++loadSequence;
         pauseStudyAudio();
         restoring = true;
         let success = false;
         try {
-          const sheets = await WordParser.read(fileMap[fileName], window.Android ? inflateXlsx : undefined);
+          const parsed = await Vocabulary.readBooks(fileMap, names, window.Android ? inflateXlsx : undefined);
           if (sequence !== loadSequence) return;
-          const parsed = parseSheets(sheets);
-          if (parsed.words.length === 0) {
-            notify(
-              "「" +
-                fileName +
-                "」里没读到单词。请确认第一行是表头（德语 / 汉语 / 词性…）。",
-              "error"
-            );
-            return;
-          }
-          currentFileName = fileName;
-          processData(parsed.words, preferences.books[fileName]);
-          document.querySelectorAll(".file-item").forEach(el => {
-            el.classList.toggle("active", el.dataset.fileName === fileName);
+          currentBookNames = names;
+          currentFileName = Vocabulary.selectionKey(names);
+          processData(parsed.words, preferences.books[currentFileName]);
+          document.querySelectorAll('.file-item').forEach(el => {
+            el.classList.toggle('active', names.includes(el.dataset.fileName));
+            const checkbox = el.querySelector('input');
+            if (checkbox) checkbox.checked = names.includes(el.dataset.fileName);
           });
+          updateMixSelection();
           closeLibrary();
           success = true;
-          parsed.warnings.forEach(function (w) {
-            notify(w, "warn");
-          });
-          return success;
+          parsed.warnings.forEach(warning => notify(warning, 'warn'));
+          return true;
         } catch (err) {
-          if (sequence !== loadSequence) return;
-          notify(
-            "读取「" + fileName + "」失败：" + (err && err.message ? err.message : err),
-            "error"
-          );
+          if (sequence === loadSequence) notify('读取词表失败：' + err.message, 'error');
         } finally {
-          if (sequence === loadSequence) {
-            restoring = false;
-            if (success) saveStudy();
-          }
+          if (sequence === loadSequence) { restoring = false; if (success) saveStudy(); }
         }
       }
 
       function processData(words, saved) {
         currentFileWords = words;
-        const source = fileMap[currentFileName];
-        currentFileWords.forEach(w => w.sourceRoot = source && source.root);
-        const savedMarks = store.marks(currentFileName);
-        currentFileWords.forEach(function (w) {
-          w.marked = savedMarks.indexOf(w.german) !== -1;
+        const marks = new Map();
+        currentFileWords.forEach(word => {
+          word.sourceBook = word.sourceBook || currentFileName;
+          if (!marks.has(word.sourceBook)) marks.set(word.sourceBook, new Set(store.marks(word.sourceBook)));
+          word.marked = marks.get(word.sourceBook).has(word.german);
         });
         orderedWords = currentFileWords.slice();
         isShuffled = !!(saved && saved.shuffled);
@@ -467,6 +279,7 @@
           });
         }
 
+        baseList = baseList.filter(word => Vocabulary.matches(word, searchQuery));
         displayWords = baseList;
         currentIndex = keepIndex
           ? Math.min(currentIndex, Math.max(0, displayWords.length - 1))
@@ -510,6 +323,12 @@
         refreshDisplayList();
       }
 
+      function searchWords(value) {
+        searchQuery = value.trim();
+        revealedListIds.clear();
+        refreshDisplayList();
+      }
+
       function switchView(view) {
         pauseStudyAudio();
         lastAutoKey = null;
@@ -550,7 +369,7 @@
         const emptyEl = document.getElementById("emptyState");
         emptyEl.style.display = "none";
         if (displayWords.length === 0) {
-          if (isFilterActive && currentFileWords.length > 0) {
+          if ((isFilterActive || searchQuery) && currentFileWords.length > 0) {
             cardCont.style.display = currentView === "card" ? "flex" : "none";
             listCont.style.display = currentView === "list" ? "flex" : "none";
             renderEmptyView();
@@ -577,7 +396,7 @@
           const cardEl = document.getElementById("cardView");
           cardEl.className = "card bg-other";
           document.getElementById("germanArea").classList.remove("hidden-content");
-          document.getElementById("cardGerman").innerText = "没有星标单词";
+          document.getElementById("cardGerman").innerText = searchQuery ? "未找到匹配单词" : "没有星标单词";
           document.getElementById("chineseArea").style.visibility = "hidden";
           document.getElementById("metaArea").style.visibility = "hidden";
           document.getElementById("cardIndexInfo").innerText = "";
@@ -591,7 +410,7 @@
           document.querySelector("#wordTable tbody").innerHTML =
             '<tr><td colspan="' +
             cols +
-            '" style="text-align:center;padding:30px;color:#999;">没有星标单词</td></tr>';
+            '" style="text-align:center;padding:30px;color:var(--muted);">' + (searchQuery ? '未找到匹配单词' : '没有星标单词') + '</td></tr>';
         }
       }
 
@@ -844,10 +663,11 @@
 
       function toggleMark(wordObj) {
         wordObj.marked = !wordObj.marked;
-
-        currentFileWords.forEach(w => { if (w.german === wordObj.german) w.marked = wordObj.marked; });
-
-        store.setMark(currentFileName, wordObj.german, wordObj.marked);
+        const book = wordObj.sourceBook || currentFileName;
+        currentFileWords.forEach(word => {
+          if ((word.sourceBook || currentFileName) === book && word.german === wordObj.german) word.marked = wordObj.marked;
+        });
+        store.setMark(book, wordObj.german, wordObj.marked);
 
         if (isFilterActive && !wordObj.marked) {
           refreshDisplayList(true);

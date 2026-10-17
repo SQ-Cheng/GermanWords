@@ -19,6 +19,29 @@
       audio+=currentFileWords.filter(w=>findAudioFile(w)).length;
     }
     assert(total===460 && audio===460,'all 460 words and recordings');
+    await loadBooks(names);
+    assert(currentFileWords.length===460 && new Set(currentFileWords.map(w=>w.id)).size===460,'mixed unique IDs');
+    assert(currentFileWords.filter(w=>findAudioFile(w)).length===460,'mixed recordings');
+    localStorage.setItem(STORAGE_KEY,'{}');currentFileWords.forEach(w=>w.marked=false);
+    const duplicate=currentFileWords.find(w=>currentFileWords.some(other=>other.sourceBook!==w.sourceBook && other.german===w.german));
+    toggleMark(duplicate);
+    assert(store.marks(duplicate.sourceBook).includes(duplicate.german),'mixed star saved under original book');
+    assert(!currentFileWords.some(w=>w.sourceBook!==duplicate.sourceBook && w.german===duplicate.german && w.marked),'mixed same-name star isolation');
+    shuffleCurrentList();seekProgress(12);
+    const mixedOrder=orderedWords.map(w=>w.id).join('|');
+    await loadFile(names[0]);await loadBooks(names);
+    assert(currentIndex===12 && orderedWords.map(w=>w.id).join('|')===mixedOrder,'mixed progress and order restore');
+    searchWords(' LERNEN ');
+    assert(displayWords.length>0 && displayWords.every(w=>/lernen/i.test(w.german)),'mixed search');
+    searchWords('no-such-word-123');
+    assert(!displayWords.length && document.getElementById('studyProgress').disabled,'empty search state');
+    searchWords('');
+    assert(displayWords.length===460 && orderedWords.map(w=>w.id).join('|')===mixedOrder,'search preserves shuffle');
+    const choices=Array.from(document.querySelectorAll('#fileList input'));
+    choices.forEach(input=>input.checked=false);updateMixSelection();
+    choices[0].click();assert(document.getElementById('mixBooks').disabled,'mix needs two units');
+    choices[1].click();assert(!document.getElementById('mixBooks').disabled,'two checked units can mix');
+    await loadSelectedBooks();assert(currentBookNames.length===2 && currentFileWords.length===119,'checkbox mix selection');
     await loadFile(names[0]);
     localStorage.setItem(STORAGE_KEY,'{}');
     currentFileWords.forEach(w=>w.marked=false);
@@ -79,11 +102,11 @@
     assert(document.documentElement.scrollWidth<=window.innerWidth+1,'no horizontal overflow');
     const footer=document.querySelector('.study-footer').getBoundingClientRect();
     assert(footer.bottom<=innerHeight+1 && document.body.scrollHeight<=innerHeight+1,'single-screen page and footer');
-    const example=parseSheets([{name:'Safe',rows:[['德语','中文','词性','例句'],['<b>literal</b>','字面','动词','A & B']]}]).words[0];
+    const example=WordParser.parseSheets([{name:'Safe',rows:[['德语','中文','词性','例句'],['<b>literal</b>','字面','动词','A & B']]}]).words[0];
     processData([example]);
     assert(document.getElementById('cardGerman').textContent==='<b>literal</b>','literal imported text');
     assert(document.getElementById('cardExample').innerText==='A & B','examples');
-    report='PASS: 460 words / 460 matching recordings; three modes in cards and lists, answer hiding/reveal, reversible shuffle, filtered/resumed order, stars, empty filter, navigation, compact heading, back, literal text and portrait layout.';
+    report='PASS: 460 words / 460 matching recordings; mixed checkbox selection, unique IDs, isolated source-book stars, mixed progress/order restore, search, empty state; three modes, cards/lists, shuffle, navigation, heading, back and literal text.';
   } catch(e) { report='FAIL: '+e.stack; }
   finally {
     pauseStudyAudio();
