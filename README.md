@@ -2,6 +2,10 @@
 
 GermanWords 是面向 Android 和 Windows 的离线德语词汇学习工具，支持单词卡片、自测、录音播放和星标复习。两端共用词库与基础数据处理逻辑，分别适配手机和电脑的操作方式。日常学习无需联网。
 
+目前开发人员：SQ-Cheng (Android), freshfish6666 (Windows).
+
+致谢：王老师，以及开发之前版本的同学。
+
 [下载与历史版本](https://github.com/SQ-Cheng/GermanWords/releases) · [问题与建议](https://github.com/SQ-Cheng/GermanWords/issues) · [Android 使用说明（PDF）](output/pdf/GermanWordsAndroid-User-Guide.pdf)
 
 ## 功能
@@ -82,9 +86,3 @@ node tests/test-playback.mjs
 node tests/test-vocabulary.mjs
 node tests/test-marks.mjs
 ```
-
-## 开发与致谢
-
-开发者：SQ-Cheng（Android）、freshfish6666（Windows）。
-
-感谢王老师，以及开发之前版本的同学。
