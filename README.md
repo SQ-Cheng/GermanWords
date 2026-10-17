@@ -2,9 +2,9 @@
 
 Android 与 Windows 离线版共用 [GermanWords 仓库](https://github.com/SQ-Cheng/GermanWords)，两个客户端分别维护界面与平台功能。项目根文件夹为 `GermanWords/`；Android Studio 仍打开其中的 `apps/android/`。
 
-当前最新预发布版：**Android / Windows 4.2.0-beta.3**（Android versionCode 8）。Windows 已迁移为 Tauri 2 / WebView2 桌面程序。本次从 `codex/windows-desktop-migration` 分支发布，**尚未合并 main**。云盘 Android 与旧 Windows 原型仍为 4.2.0-beta.2。
+当前最新预发布版：**Android / Windows 4.2.0-beta.3**（Android versionCode 8）。Windows 已迁移为 Tauri 2 / WebView2 桌面程序。本次从 `codex/windows-desktop-migration` 分支发布，**尚未合并 main**。云盘双端更新验证版为 **4.2.0-beta.4**（Android versionCode 9），仅递增版本、没有功能修改；GitHub 预发布版仍为 beta.3。
 
-Windows 桌面安装包与测试更新见 [清华云盘](https://cloud.tsinghua.edu.cn/d/361a8eccb1624c65ae26/)；从桌面 beta.2 安装包起步，可测试升级到 beta.3。首次从旧 HTML 版迁移需运行新安装包，并导入旧星标/设置。详见 [Windows 开发与迁移](apps/windows/README.md) 和 [更新维护](docs/updates.md)。
+Windows 桌面安装包与测试更新见 [清华云盘](https://cloud.tsinghua.edu.cn/d/361a8eccb1624c65ae26/)；从 GitHub 的 beta.3 安装包起步，可测试升级到云盘 beta.4。首次从旧 HTML 版迁移需运行新安装包，并导入旧星标/设置。详见 [Windows 开发与迁移](apps/windows/README.md) 和 [更新维护](docs/updates.md)。
 
 目前开发人员：SQ-Cheng (Android), freshfish6666 (Windows).
 
