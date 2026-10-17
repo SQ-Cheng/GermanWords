@@ -20,24 +20,17 @@ GermanWords 是面向 Android 和 Windows 的离线德语词汇学习工具，�
 
 ## 最新版本与安装
 
-| 渠道 | 版本 | 说明 |
-| --- | --- | --- |
-| [GitHub 最新预发布版](https://github.com/SQ-Cheng/GermanWords/releases/tag/v4.2.0-beta.3) | **4.2.0-beta.3** | Android APK 与 Windows x64 桌面安装包，支持从清华云盘检查更新 |
-| [清华云盘更新验证版](https://cloud.tsinghua.edu.cn/d/361a8eccb1624c65ae26/) | **4.2.0-beta.4** | 仅递增版本号，无功能改动，用于验证双端更新流程；Android versionCode 为 9 |
+当前最新预发布版为 [**4.2.0-beta.3**](https://github.com/SQ-Cheng/GermanWords/releases/tag/v4.2.0-beta.3)，提供 Android APK 与 Windows x64 桌面安装包。正式版与历史安装包见 GitHub Releases；预发布版以对应发布页说明为准。
 
-以上版本均为 Beta。正式版与历史安装包见 GitHub Releases；预发布版以对应发布页说明为准。
-
-**Android：**下载 APK 后按系统提示安装。应用内更新需要允许此应用安装更新，并由系统确认；覆盖升级须使用相同应用签名。
+**Android：**下载 APK 后按系统提示安装。覆盖升级须使用相同应用签名。
 
 **Windows：**下载 `GermanWords-Windows-…-x86_64-Setup.exe` 并运行。桌面版使用 Tauri / WebView2，首次安装若缺少 WebView2，安装器会尝试联网下载安装运行环境。当前提供 x64 包。
-
-两端在启动时尝试后台检查更新，成功检查后间隔 24 小时再自动检查；设置中的「检查更新」可立即检查。发现新版本后由用户选择是否下载和安装，断网不影响学习。使用 GitHub beta.3 可验证升级至云盘 beta.4。
 
 旧 Windows HTML 版迁移到桌面版时，需运行新的安装包；可使用发布页提供的迁移 ZIP，在原页面地址导出星标与设置，再导入桌面版。
 
 ## 源码与开发
 
-本仓库同时维护 Android 和 Windows 客户端。**主分支当前源码对应 4.1.0-beta.1；4.2.0 桌面版及云盘更新功能位于独立开发分支，尚未合并主分支。**复现已发布版本请检出相应 Git 标签，例如 `v4.2.0-beta.3`，并阅读该版本的构建说明。
+本仓库同时维护 Android 和 Windows 客户端。**主分支当前源码对应 4.1.0-beta.1；4.2.0 桌面版位于独立开发分支，尚未合并主分支。**复现已发布版本请检出相应 Git 标签，例如 `v4.2.0-beta.3`，并阅读该版本的构建说明。
 
 主分支目录：
 
