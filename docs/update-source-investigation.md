@@ -1,6 +1,6 @@
 # 软件内更新来源调研
 
-日期：2026-10-17（Asia/Shanghai）。基线：4.1.0-beta.1，Android versionCode 5。分支：`codex/update-source-investigation`。本轮只验证下载来源并记录方案，不改变应用权限、联网行为或安装流程，不上传云盘文件。
+日期：2026-10-17（Asia/Shanghai）。基线：4.1.0-beta.1，Android versionCode 5。分支：`codex/update-source-investigation`。以下为首次调研快照；后续已按用户要求实现原生更新器并上传测试包，当前方案与维护方法见 [更新说明](updates.md)。
 
 ## 结论
 

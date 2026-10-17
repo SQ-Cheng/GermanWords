@@ -2,7 +2,9 @@
 
 Android 与 Windows 离线版共用 [GermanWords 仓库](https://github.com/SQ-Cheng/GermanWords)，两个客户端分别维护界面与平台功能。项目根文件夹为 `GermanWords/`；Android Studio 仍打开其中的 `apps/android/`。
 
-当前测试版本：**Android / Windows 4.1.0-beta.1**（Android versionCode 5）。这是 beta 预发布版；正式版与历史版本保留在 Releases 中。
+本开发分支：**Android / Windows 4.2.0-beta.2**（Android versionCode 7），用于云盘更新测试；起始测试包为 4.2.0-beta.1（versionCode 6）。GitHub 已发布版本仍为 4.1.0-beta.1。
+
+[云盘测试包](https://cloud.tsinghua.edu.cn/d/361a8eccb1624c65ae26/)：先安装或解压 beta.1，再按提示升级到 beta.2。Windows 请双击 `GermanWords.cmd` 启动，手动检查用 `Check updates.cmd`；直接打开 HTML 仍可离线学习，但不会检查更新。Android 从启动或侧栏「检查更新」进入。安装需要确认，详见 [更新与维护](docs/updates.md)。
 
 目前开发人员：SQ-Cheng (Android), freshfish6666 (Windows).
 
@@ -13,14 +15,15 @@ Android 与 Windows 离线版共用 [GermanWords 仓库](https://github.com/SQ-C
 | 目录 | 内容 |
 | --- | --- |
 | `apps/android/` | Android Studio / Gradle 项目，Java 外壳与 WebView 界面 |
-| `apps/windows/` | Windows 浏览器离线版，双击 `De_words_helper.html` 打开 |
+| `apps/windows/` | Windows 浏览器离线版，双击 `GermanWords.cmd` 启动并检查更新，HTML 可直接离线打开 |
 | `shared/words/` | 两端共用的 Excel 词库与录音，唯一资源源目录 |
 | `shared/parser.js` | 两端共用的 XLSX 读取、表头识别与词条解析 |
 | `shared/theme.js`、`shared/theme.css` | 两端共用的主题偏好与昼夜配色 |
 | `shared/playback.js` | 语速偏好保存与有效值校验；各端适配现有播放器 |
 | `shared/audio.js`、`shared/marks.js` | 公共录音索引/匹配与原单元星标存储 |
 | `shared/vocabulary.js` | 搜索匹配、多单元读取与词条来源标识 |
-| `tools/` | 构建工具 |
+| `shared/app-config.json` | 双端版本、更新来源、通道与更新验签公钥 |
+| `tools/` | 构建与维护发布工具 |
 | `tests/` | 解析器、学习引擎测试及真机测试入口 |
 | `output/pdf/` | Android 使用说明 |
 | `artifacts/verification.md` | 历史设备验证记录 |
@@ -35,9 +38,9 @@ Android 与 Windows 离线版共用 [GermanWords 仓库](https://github.com/SQ-C
 - 搜索当前学习范围中的德语或中文，可与星标筛选和乱序组合。Android 在词库中输入后点「查看」；Windows 在顶部输入。搜索不区分大小写，支持变音符号与 ß/ss；清空后恢复当前范围，搜索词不持久化。
 - 两端侧栏可选 0.75×、1×、1.25×、1.5× 语速，自动保存并应用于当前及后续录音。Windows 普通模式点击卡片即可重播；卡片和列表自测均按需揭晓答案，答案隐藏时不通过音频、例句或背景颜色泄露。
 
-全部 GitHub issues、实现方案与验证记录见 [本轮 issue 记录](docs/issues-2026-10-17.md)。课本例句与软件内更新按要求暂缓。
+全部 GitHub issues、实现方案与验证记录见 [本轮 issue 记录](docs/issues-2026-10-17.md)。课本例句继续暂缓；软件内更新在当前分支中测试。
 
-Beta 发布页提供可安装 APK、Windows 离线 ZIP 和 SHA256 校验文件。Windows 解压后双击 HTML，再导入包内的 `words/`。Android beta 使用与历史测试包相同的开发签名，便于覆盖升级；发布构建关闭调试，不包含测试组件。正式发布前应配置独立发布签名。PDF 为早期 Android 版说明，新功能以本 README 为准。
+Beta 发布页提供可安装 APK、Windows 离线 ZIP 和 SHA256 校验文件。Windows 解压后双击 `GermanWords.cmd`，再导入包内的 `words/`。Android beta 使用与历史测试包相同的开发签名，便于覆盖升级；发布构建关闭调试，不包含测试组件。正式发布前应配置独立发布签名。PDF 为早期 Android 版说明，新功能以本 README 为准。
 
 Windows 离线发布包：
 
@@ -45,7 +48,7 @@ Windows 离线发布包：
 python tools/build-windows.py
 ```
 
-将生成的 `output/windows/` 整个文件夹交给用户，保留 HTML、客户端与公共脚本/样式、`words/`。双击其中的 HTML，导入同目录的 `words/` 即可使用；用户无需 Python。生成目录不入库，每次构建会重新生成。Windows 保留原有学习界面与功能，不增加 Android 的备份和位置恢复功能。
+将生成的 `output/windows/` 整个文件夹交给用户，保留 HTML、客户端与公共脚本/样式、`words/`。双击其中的 `GermanWords.cmd`，导入同目录的 `words/` 即可使用；用户无需 Python，更新器使用 Windows 自带 PowerShell 5.1。生成目录不入库，每次构建会重新生成。Windows 保留原有学习界面与功能，不增加 Android 的备份和位置恢复功能。
 
 从仓库根目录验证公共解析器和 Android 学习引擎（Node.js 22 或更高版本）：
 

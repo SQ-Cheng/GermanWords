@@ -6,7 +6,7 @@
 
 ## 使用
 
-应用名称：**德语单词**，当前版本 **4.1.0-beta.1**（versionCode 5，Beta 预发布）。首次打开直接进入 E1；课程标题右侧的菜单可选择 E1–E7 或「虚词大盘点」。内置 8 份 Excel、460 个词条及全部对应录音，安装后无需联网。
+应用名称：**德语单词**，本分支版本 **4.2.0-beta.2**（versionCode 7，云盘更新测试版）。首次打开直接进入 E1；课程标题右侧的菜单可选择 E1–E7 或「虚词大盘点」。内置 8 份 Excel、460 个词条及全部对应录音，安装后无需联网。
 
 卡片通过左右滑动或外接键盘 ← / → 翻页；底部进度条可以拖动，拖动时预览位置，松手后跳转并保存进度。乱序、星标筛选和列表模式下均按当前展示顺序定位；空列表或仅一个词时禁用滑块。主页面保持一屏，超长词条或例句只在卡片内部滚动。学习模式名称与原版一致，星标、发音和列表操作中的圆形按钮在大字号下保持等宽等高。
 
@@ -33,7 +33,7 @@
 - 最低 Android 6.0（API 23）；compileSdk / targetSdk 35。
 - 纯 Java Android 宿主 + 本地 HTML/CSS/JavaScript 学习引擎，不含 CPU 架构专属原生库，适用于 ARM、ARM64 和 x86 设备。
 - 支持手机、横屏、平板、刘海和系统栏边距。跟随系统字体大小，大字体保持卡片和底部进度在一屏内，超长词条或例句在卡片内部滚动；真机已测试 100%–200% 文本缩放及 320dp 窄屏。建议使用可更新的 Android System WebView；页面布局需要 Chromium 87 及以上，Android 6.0 的原始旧 WebView 应先更新。
-- 不申请互联网和整个存储空间权限。使用系统文件选择器授权读取；固定 HTTPS 本地域名的资源由应用拦截提供，禁止外部页面、file:// 和内容 URI 浏览。
+- 仅原生更新器使用互联网权限，并申请由用户授权的安装应用权限；不申请整个存储空间权限。使用系统文件选择器授权读取；固定 HTTPS 本地域名的资源由应用拦截提供，禁止外部页面、file:// 和内容 URI 浏览。
 - 发音使用本地录音，不要求设备安装德语 TTS。音频格式支持程度取决于设备解码器；内置 MP3 全部完成匹配检查。
 - 原生文件选择器与本地 WebView 资源的做法参考 [Android 文件访问文档](https://developer.android.com/training/data-storage/shared/documents-files) 和 [加载应用内网页内容](https://developer.android.com/develop/ui/views/layout/webapps/load-local-content)。
 
@@ -81,3 +81,5 @@ APK：`app/build/outputs/apk/debug/app-debug.apk`。这是使用 Android 默认�
 遇到问题或有改进建议，请登录 GitHub，在 [Issues](https://github.com/SQ-Cheng/GermanWords/issues) 中点击 **New issue**。描述操作步骤、预期结果、实际情况，并提供手机型号、Android 版本和应用版本；需要时附截图。
 
 也可扫描使用说明末尾的问卷星二维码填写反馈；说明书提供 PDF 和高清 PNG 两种格式。
+
+云盘更新测试与维护见 [更新说明](../../docs/updates.md)。版本统一维护于 `shared/app-config.json`，Gradle 直接读取；更新检查、下载、验签和安装由 `UpdateManager` / `UpdateReceiver` 完成，WebView 仍只能读取本地资源。

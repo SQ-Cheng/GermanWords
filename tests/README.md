@@ -1,6 +1,6 @@
 # 测试
 
-测试代码位于本目录；Android 设备测试按 Gradle 标准放在 `apps/android/app/src/androidTest/`，不会打包进主应用。`tools/` 仅保留构建工具，日志和截图位于 Git 忽略的 `artifacts/`。
+测试代码位于本目录；Android 设备测试按 Gradle 标准放在 `apps/android/app/src/androidTest/`，不会打包进主应用。`tools/` 保留构建和维护发布工具，日志和截图位于 Git 忽略的 `artifacts/`。
 
 仓库根目录执行（Node.js 22+）：
 
@@ -37,3 +37,5 @@ pnpm --dir tests test:browser
 本轮回归还覆盖双端 460 词混合与唯一 ID、原单元星标隔离、搜索与乱序组合、Android 混合进度恢复、无结果保留位置、Windows 卡片点击仅播放一次、语速保存与当前录音变速、同名导入录音的来源匹配。真机测试实际读取 MediaPlayer 的倍速，结束时还原原有语速偏好。
 
 架构审查补充：共享星标存储覆盖旧 JSON、外部恢复、损坏数据、存储失败的内存回退；Windows 还验证卡片和列表隐藏答案、音频取消、逐行揭晓/星标/键盘以及词库替换清空旧状态。
+
+Windows 更新器回归：`powershell.exe -NoProfile -File tests/windows-updates.ps1`。直接加载生产函数，覆盖验签、错误通道/路径/校验值、ZIP 越界、版本不一致、失败回滚、保留用户文件与旧更新请求；不连接网络、不操作用户安装目录。真实云盘升级记录见 `artifacts/cloud-update-verification.md`。
