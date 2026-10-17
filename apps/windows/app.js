@@ -630,6 +630,7 @@ function renderList() {
     tr.onkeydown = event => {
       if (event.target !== tr || !['Enter', ' '].includes(event.key)) return;
       event.preventDefault();
+      event.stopPropagation();
       currentIndex=index;
       if (event.key === ' ' || currentMode === 'normal') toggleMark(word); else toggleListReveal(word);
     };

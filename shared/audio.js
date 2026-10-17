@@ -142,5 +142,5 @@ const WordAudio = (function () {
     return index !== audioIndex ? find(word, audioIndex, audioIndex) : null;
   }
 
-  return {build, find, foldName};
+  return {build, find};
 })();

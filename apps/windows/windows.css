@@ -400,6 +400,9 @@ td {
   border-bottom: 1px solid var(--surface-soft);
   vertical-align: middle;
 }
+.pronounce-cell { min-width:200px; white-space:nowrap; }
+.pronounce-cell button { height:36px; margin:2px; padding:6px 10px; white-space:nowrap; }
+.pronounce-cell button:not(.list-answer) { width:36px; padding:0; border-radius:50%; }
 
 /* 颜色系统 */
 .bg-der {

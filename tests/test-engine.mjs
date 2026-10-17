@@ -154,7 +154,7 @@ await vm.runInContext('loadFile("broken.xlsx")',context);
 assert.equal(vm.runInContext('currentFileName',context),'E2_单词汇总.xlsx');
 context.validName=validName;await vm.runInContext('loadFile(validName)',context);
 // Unicode matching and literal text are shared with the original browser engine.
-assert.equal(vm.runInContext('WordAudio.foldName("ÄÖÜß")',context),'aouss');
+assert.equal(vm.runInContext('WordAudio.find({german:"ÄÖÜß"},WordAudio.build([{name:"aouss.mp3"}])).name',context),'aouss.mp3');
 context.sheets=[{name:'Extra',rows:[['中文','德语','例句','词性'],['文本','<b>test</b>','A & B','动词']]}];
 assert.equal(vm.runInContext('WordParser.parseSheets(sheets).words[0].german',context),'<b>test</b>');
 context.importedAudio={name:'lernen.mp3',root:'import-test',webkitRelativePath:'import-test/einheit1/lernen.mp3',url:'/library/import-test/einheit1/lernen.mp3'};
