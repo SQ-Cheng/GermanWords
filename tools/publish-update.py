@@ -9,7 +9,6 @@ import json
 import shutil
 import subprocess
 import sys
-import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
@@ -31,9 +30,12 @@ def package(apk, destination, config):
     version = config['versionName']
     shutil.copyfile(apk, destination / f'GermanWords-Android-{version}.apk')
     with zipfile.ZipFile(destination / f'GermanWords-Windows-{version}.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
-        for file in sorted((ROOT / 'output/windows').rglob('*')):
-            if file.is_file() and file.name != '.update.lock':
-                archive.write(file, file.relative_to(ROOT / 'output/windows').as_posix())
+        web = ROOT / 'output/windows/web'
+        for file in sorted(web.rglob('*')):
+            if file.is_file():
+                relative = file.relative_to(web).as_posix()
+                archive.write(file, 'De_words_helper.html' if relative == 'index.html' else relative)
+        archive.write(CONFIG, 'app-config.json')
     print(f'Packaged {version} in {destination}')
 
 
@@ -61,7 +63,11 @@ def publish(args, config):
                                         signature=base64.b64encode(signature).decode())), encoding='utf-8')
     # Publish the signed manifest last: clients never see a release before its files exist.
     files.append(manifest)
-    upload = urllib.parse.urlparse(args.upload_url)
+    upload_files(files, manifest, args.upload_url, config)
+
+
+def upload_files(files, manifest, upload_url, config):
+    upload = urllib.parse.urlparse(upload_url)
     if upload.scheme != 'https' or upload.hostname != urllib.parse.urlparse(config['shareUrl']).hostname:
         raise ValueError('Use an HTTPS upload link on the configured cloud host')
     token = upload.path.rstrip('/').split('/')[-1]
@@ -69,20 +75,18 @@ def publish(args, config):
     link = json.loads(read_url(endpoint))['upload_link']
     if urllib.parse.urlparse(link).hostname != upload.hostname or not link.startswith('https://'):
         raise ValueError('Unexpected upload server')
+    share_token = urllib.parse.urlparse(config['shareUrl']).path.rstrip('/').split('/')[-1]
+    listing = json.loads(read_url(f'https://{upload.netloc}/api/v2.1/share-links/{share_token}/dirents/?path=%2F'))
+    existing_names = {entry['file_name'] for entry in listing['dirent_list'] if not entry['is_dir']}
     for file in files:
         data = file.read_bytes()
         url = config['shareUrl'] + 'files/?p=' + urllib.parse.quote('/' + file.name, safe='') + '&raw=1&t=' + uuid.uuid4().hex
-        if file != manifest:
-            try:
-                existing = read_url(url)
-            except urllib.error.HTTPError as error:
-                if error.code != 404:
-                    raise
-            else:
-                if hashlib.sha256(existing).digest() != hashlib.sha256(data).digest():
-                    raise ValueError(f'Existing versioned package differs; increment the version: {file.name}')
-                print(f'Already published and verified: {file.name}')
-                continue
+        if file != manifest and file.name in existing_names:
+            existing = read_url(url)
+            if hashlib.sha256(existing).digest() != hashlib.sha256(data).digest():
+                raise ValueError(f'Existing versioned package differs; increment the version: {file.name}')
+            print(f'Already published and verified: {file.name}')
+            continue
         boundary = uuid.uuid4().hex
         body = (f'--{boundary}\r\nContent-Disposition: form-data; name="parent_dir"\r\n\r\n/\r\n'
                 f'--{boundary}\r\nContent-Disposition: form-data; name="replace"\r\n\r\n1\r\n'
@@ -97,6 +101,32 @@ def publish(args, config):
         if hashlib.sha256(read_url(url)).digest() != hashlib.sha256(data).digest():
             raise RuntimeError(f'Readback verification failed: {file.name}')
         print(f'Uploaded and verified: {file.name}')
+        existing_names.add(file.name)
+
+
+def publish_windows(args, config):
+    args.directory.mkdir(parents=True, exist_ok=True)
+    version = config['versionName']
+    files = list(args.extra)
+    platforms = {}
+    for entry in args.installer:
+        arch, source = entry.split('=', 1)
+        if arch not in {'x86_64', 'aarch64'}:
+            raise ValueError('Installer architecture must be x86_64 or aarch64')
+        if 'windows-' + arch in platforms:
+            raise ValueError('Duplicate installer architecture: ' + arch)
+        installer = Path(source)
+        signature = Path(source + '.sig').read_text(encoding='utf-8').strip()
+        name = f'GermanWords-Windows-{version}-{arch}-Setup.exe'
+        target = args.directory / name
+        if target.resolve() != installer.resolve():
+            shutil.copyfile(installer, target)
+        url = config['shareUrl'] + 'files/?p=' + urllib.parse.quote('/' + name, safe='') + '&raw=1'
+        platforms['windows-' + arch] = dict(url=url, signature=signature)
+        files.append(target)
+    manifest = args.directory / config['windowsUpdater']['manifestPath'].lstrip('/')
+    manifest.write_text(json.dumps(dict(version=version, notes=args.notes, platforms=platforms), ensure_ascii=False, indent=2), encoding='utf-8')
+    upload_files(files + [manifest], manifest, args.upload_url, config)
 
 
 def main():
@@ -111,12 +141,20 @@ def main():
     pub.add_argument('--upload-url', required=True, help='Private upload link; never commit it')
     pub.add_argument('--notes', required=True)
     pub.add_argument('--extra', type=Path, nargs='*', default=[], help='Optional seed packages to upload first')
+    desktop = commands.add_parser('publish-windows', help='Publish Tauri installers; does not touch the legacy/Android feed')
+    desktop.add_argument('--directory', type=Path, default=ROOT / 'output/releases/desktop-test')
+    desktop.add_argument('--installer', action='append', required=True, help='x86_64=PATH or aarch64=PATH; include all released architectures')
+    desktop.add_argument('--upload-url', required=True)
+    desktop.add_argument('--notes', required=True)
+    desktop.add_argument('--extra', type=Path, nargs='*', default=[])
     args = parser.parse_args()
     config = json.loads(CONFIG.read_text(encoding='utf-8'))
     if args.command == 'package':
         package(args.apk, args.directory, config)
-    else:
+    elif args.command == 'publish':
         publish(args, config)
+    else:
+        publish_windows(args, config)
 
 
 if __name__ == '__main__':
