@@ -165,7 +165,7 @@ def upload_files(files, manifest, upload_url, config):
     listing_url = f'https://{upload.netloc}/api/v2.1/share-links/{share_token}/dirents/?path='
     root = json.loads(read_url(listing_url + '%2F'))['dirent_list']
     version = config['versionName']
-    version_exists = any(e['is_dir'] and e['file_name'] == version for e in root)
+    version_exists = any(e['is_dir'] and e['folder_name'] == version for e in root)
     existing = json.loads(read_url(listing_url + urllib.parse.quote('/' + version, safe='')))['dirent_list'] if version_exists else []
     existing_names = {e['file_name'] for e in existing if not e['is_dir']}
     for file in files:

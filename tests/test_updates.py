@@ -133,12 +133,30 @@ class ReleaseInputs(unittest.TestCase):
                 if '/d/abcdef/' in url: return b"dirPath: '/Release/', canUpload: true"
                 if '/upload/?' in url: return b'{"upload_link":"https://cloud.tsinghua.edu.cn/upload/temporary"}'
                 if '/dirents/?path=%2F' in url and self.config['versionName'] not in url:
-                    return json.dumps(dict(dirent_list=[dict(is_dir=True,file_name=self.config['versionName'])])).encode()
+                    return json.dumps(dict(dirent_list=[dict(is_dir=True,folder_name=self.config['versionName'])])).encode()
                 if '/dirents/' in url: return b'{"dirent_list":[{"is_dir":false,"file_name":"package.apk"}]}'
                 return b'old'
             with patch.object(publisher,'read_url',side_effect=read), patch.object(publisher.urllib.request,'urlopen') as post:
                 with self.assertRaises(ValueError): publisher.upload_files([package,index],index,'https://cloud.tsinghua.edu.cn/d/abcdef/',self.config)
                 post.assert_not_called()
+
+    def test_existing_release_reuses_files_and_only_refreshes_index(self):
+        import io
+        with tempfile.TemporaryDirectory() as directory:
+            package = Path(directory)/'package.apk'; package.write_bytes(b'apk')
+            index = Path(directory)/'update-beta.json'; index.write_bytes(b'index')
+            def read(url):
+                if '/d/abcdef/' in url: return b"dirPath: '/Release/', canUpload: true"
+                if '/upload/?' in url: return b'{"upload_link":"https://cloud.tsinghua.edu.cn/upload/temporary"}'
+                if '/dirents/' in url and self.config['versionName'] not in url:
+                    return json.dumps(dict(dirent_list=[dict(is_dir=True,folder_name='older-version'),
+                        dict(is_dir=True,folder_name=self.config['versionName']),dict(is_dir=False,file_name=index.name)])).encode()
+                if '/dirents/' in url: return b'{"dirent_list":[{"is_dir":false,"file_name":"package.apk"}]}'
+                return b'index' if 'update-beta.json' in url else b'apk'
+            with patch.object(publisher,'read_url',side_effect=read), patch.object(publisher.urllib.request,'urlopen',return_value=io.BytesIO(b'[{"name":"update-beta.json"}]')) as post:
+                publisher.upload_files([package,index],index,'https://cloud.tsinghua.edu.cn/d/abcdef/',self.config)
+                self.assertEqual(post.call_count,1)
+                self.assertIn(b'filename="update-beta.json"',post.call_args.args[0].data)
 
     def test_sdk_receives_filename_and_working_directory(self):
         with tempfile.TemporaryDirectory() as directory:
