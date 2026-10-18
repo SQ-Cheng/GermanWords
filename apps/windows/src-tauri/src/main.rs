@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod feedback;
+
 use serde::Serialize;
 use std::{
     sync::Mutex,
@@ -20,7 +22,24 @@ struct UpdateInfo {
 }
 
 fn trusted_update_url(url: &tauri::Url, host: &str, previous: usize) -> bool {
-    url.scheme() == "https" && url.host_str() == Some(host) && previous < 6
+    url.scheme() == "https"
+        && url.host_str() == Some(host)
+        && previous < 6
+        && url.port_or_known_default() == Some(443)
+        && url.username().is_empty()
+        && url.password().is_none()
+}
+
+fn restricted_client(client: reqwest::ClientBuilder, host: String) -> reqwest::ClientBuilder {
+    client
+        .https_only(true)
+        .redirect(reqwest::redirect::Policy::custom(move |attempt| {
+            if trusted_update_url(attempt.url(), &host, attempt.previous().len()) {
+                attempt.follow()
+            } else {
+                attempt.error("服务重定向地址无效或次数过多")
+            }
+        }))
 }
 
 #[tauri::command]
@@ -40,9 +59,7 @@ async fn check_update(
         return Err("更新来源必须使用 HTTPS".into());
     }
     let redirect_host = host.clone();
-    let path = config["windowsUpdater"]["manifestPath"]
-        .as_str()
-        .ok_or("更新路径无效")?;
+    let path = config["manifestPath"].as_str().ok_or("更新路径无效")?;
     let endpoint = format!("{share}files/?p={path}&raw=1&t={now}")
         .parse()
         .map_err(|_| "更新地址无效")?;
@@ -51,18 +68,7 @@ async fn check_update(
         .endpoints(vec![endpoint])
         .map_err(|e| e.to_string())?
         .timeout(Duration::from_secs(30))
-        .configure_client(move |client| {
-            let host = redirect_host.clone();
-            client
-                .https_only(true)
-                .redirect(reqwest::redirect::Policy::custom(move |attempt| {
-                    if trusted_update_url(attempt.url(), &host, attempt.previous().len()) {
-                        attempt.follow()
-                    } else {
-                        attempt.error("更新重定向地址不可信或次数过多")
-                    }
-                }))
-        })
+        .configure_client(move |client| restricted_client(client, redirect_host.clone()))
         .header(
             "User-Agent",
             format!("GermanWords/{}", app.package_info().version),
@@ -77,7 +83,7 @@ async fn check_update(
         .map_err(|e| e.to_string())?;
     if let Some(ref release) = update {
         if !trusted_update_url(&release.download_url, &host, 0) {
-            return Err("安装包不在指定云盘中".into());
+            return Err("安装包来源无效".into());
         }
     }
     let info = update.as_ref().map(|u| UpdateInfo {
@@ -106,7 +112,11 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(PendingUpdate::default())
-        .invoke_handler(tauri::generate_handler![check_update, install_update])
+        .invoke_handler(tauri::generate_handler![
+            check_update,
+            install_update,
+            feedback::submit_feedback
+        ])
         .setup(|app| {
             tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?
                 .on_navigation(|url| {
@@ -127,6 +137,25 @@ mod tests {
     use super::trusted_update_url;
 
     #[test]
+    fn official_updater_accepts_the_combined_index() {
+        let release: tauri_plugin_updater::RemoteRelease = serde_json::from_value(serde_json::json!({
+            "version": "4.2.0-beta.6", "notes": "test",
+            "platforms": {"windows-x86_64": {"url": "https://cloud.example.org/4.2.0-beta.6/setup.exe", "signature": "installer signature"}},
+            "payload": "android payload", "signature": "android metadata signature"
+        })).unwrap();
+        assert_eq!(
+            release.signature("windows-x86_64").unwrap(),
+            "installer signature"
+        );
+        assert_eq!(release.version.to_string(), "4.2.0-beta.6");
+        assert!(release
+            .download_url("windows-x86_64")
+            .unwrap()
+            .path()
+            .contains("/4.2.0-beta.6/"));
+    }
+
+    #[test]
     fn update_requests_stay_on_https_origin_with_bounded_redirects() {
         let host = "cloud.example.org";
         for (url, previous, allowed) in [
@@ -136,6 +165,8 @@ mod tests {
             ("http://cloud.example.org/file", 0, false),
             ("https://other.example.org/file", 0, false),
             ("https://cloud.example.org.attacker.test/file", 0, false),
+            ("https://cloud.example.org:8443/file", 0, false),
+            ("https://user@cloud.example.org/file", 0, false),
         ] {
             assert_eq!(
                 trusted_update_url(&url.parse().unwrap(), host, previous),

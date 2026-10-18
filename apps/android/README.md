@@ -2,7 +2,7 @@
 
 本仓库的 Android Studio 项目，来自「德语单词记忆助手 4.0」。Windows 离线版位于 `../windows/`。
 
-[下载安装包](https://github.com/SQ-Cheng/GermanWords/releases/tag/v4.2.0-beta.5) · [PDF 使用说明](../../output/pdf/GermanWordsAndroid-User-Guide.pdf) · [图片使用说明](../../output/pdf/GermanWordsAndroid-User-Guide.png) · [问题与建议](https://github.com/SQ-Cheng/GermanWords/issues)
+[下载安装包](https://github.com/SQ-Cheng/GermanWords/releases/tag/v4.2.1-beta.1) · [PDF 使用说明](../../output/pdf/GermanWordsAndroid-User-Guide.pdf) · [图片使用说明](../../output/pdf/GermanWordsAndroid-User-Guide.png) · [问题与建议](https://github.com/SQ-Cheng/GermanWords/issues)
 
 ## 使用
 
@@ -53,7 +53,7 @@ APK：`app/build/outputs/apk/debug/app-debug.apk`。这是使用 Android 默认�
 
 发布工具通过 Android SDK 的 `aapt` / `apksigner` 检查包名、实际版本、嵌入配置和证书；SDK 由 PATH、`ANDROID_HOME` 或 `ANDROID_SDK_ROOT` 定位。支持的升级证书指纹记录在 `release-certificate.sha256`，它是公开身份信息，不是私钥。正式签名迁移须另行设计，不能只修改指纹来绕过现有设备的签名要求。
 
-`engine.js`、`index.html`、`mobile.css`、`mobile.js` 直接维护 Android 界面与学习逻辑。`../../shared/` 维护公共解析器、词表组合与搜索、录音匹配、星标存储、主题、语速偏好及词库；Gradle 构建时自动打包并生成资源索引。Windows 离线包使用相同的公共文件。共享脚本不直接调用 Android，由 `mobile.js` 适配原生系统主题、系统栏和播放器。
+`engine.js`、`index.html`、`mobile.css`、`mobile.js` 直接维护 Android 界面与学习逻辑。`../../shared/` 维护公共解析器、词表组合与搜索、录音匹配、星标存储、主题、语速偏好及词库；Gradle 构建时自动打包并生成资源索引。Windows 离线包使用相同的公共文件。共享脚本不直接调用 Android，由 `mobile.js` 适配原生系统主题、系统栏、播放器及反馈提交。
 
 仓库根目录统一使用 Git 管理；历史标签 `v1.0.0`、`v1.0.1` 保留早期 Android 实现；从 4.0.1 起两端统一版本号。构建目录、APK、设备截图、日志和本机 SDK 路径不入库。
 
@@ -80,7 +80,7 @@ APK：`app/build/outputs/apk/debug/app-debug.apk`。这是使用 Android 默认�
 
 公开仓库：[SQ-Cheng/GermanWords](https://github.com/SQ-Cheng/GermanWords)。源代码、更新记录与 PDF 使用说明在仓库中；[Releases](https://github.com/SQ-Cheng/GermanWords/releases) 提供可安装 APK 和说明书下载。
 
-遇到问题或有改进建议，请登录 GitHub，在 [Issues](https://github.com/SQ-Cheng/GermanWords/issues) 中点击 **New issue**。描述操作步骤、预期结果、实际情况，并提供手机型号、Android 版本和应用版本；需要时附截图。
+可在应用“词库与设置 → 意见反馈”填写并提交建议，无需登录。提交附带时间、基本设备信息和应用版本，不包含学习记录；失败时保留内容。也可登录 GitHub，在 [Issues](https://github.com/SQ-Cheng/GermanWords/issues) 中点击 **New issue**。描述操作步骤、预期结果、实际情况，并提供手机型号、Android 版本和应用版本；需要时附截图。
 
 也可扫描使用说明末尾的问卷星二维码填写反馈；说明书提供 PDF 和高清 PNG 两种格式。
 

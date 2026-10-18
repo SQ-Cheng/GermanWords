@@ -52,7 +52,7 @@ final class UpdateManager implements AutoCloseable {
                 ui(() -> new AlertDialog.Builder(activity).setTitle("发现新版本 "+release.optString("versionName"))
                         .setMessage(release.optString("notes")+"\n\n下载后由系统确认安装，学习进度保留。")
                         .setNegativeButton("稍后",null).setPositiveButton("下载更新",(dialog,which) -> fetchPackage(release)).show());
-            } catch(Exception e) { if(manual)message("检查更新失败："+e.getMessage()); }
+            } catch(Exception e) { if(manual)message("暂时无法检查更新，请稍后重试"); }
             finally { busy.set(false); }
         });
     }
@@ -70,31 +70,17 @@ final class UpdateManager implements AutoCloseable {
         JSONObject release=new JSONObject(new String(payload,StandardCharsets.UTF_8));
         if(release.getInt("schema")!=1 || !config.getString("channel").equals(release.getString("channel"))) throw new IOException("更新通道不匹配");
         JSONObject asset=release.getJSONObject("android");
-        if(!asset.getString("file").matches("GermanWords-Android-[a-zA-Z0-9.-]+\\.apk") || !asset.getString("sha256").matches("[a-f0-9]{64}") || asset.getLong("size")<=0 || asset.getLong("size")>33554432) throw new IOException("安装包信息无效");
+        String name=release.getString("versionName");
+        if(!name.matches("[0-9]+\\.[0-9]+\\.[0-9]+(?:-[a-zA-Z0-9.-]+)?")
+                || !asset.getString("file").equals(name+"/GermanWords-Android-"+name+".apk")
+                || !asset.getString("sha256").matches("[a-f0-9]{64}") || asset.getLong("size")<=0 || asset.getLong("size")>33554432)throw new IOException("安装包信息无效");
         return release;
     }
 
-    private static byte[] read(InputStream in,int limit) throws IOException {
-        ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] buffer=new byte[16384];int count;
-        while((count=in.read(buffer))!=-1) { if(out.size()+count>limit)throw new IOException("下载内容过大");out.write(buffer,0,count); }
-        return out.toByteArray();
-    }
+    private static byte[] read(InputStream in,int limit) throws IOException { return ServiceHttp.read(in,limit); }
     private byte[] download(String path,int limit) throws Exception {
         URL url=new URL(config.getString("shareUrl")+"files/?p="+URLEncoder.encode(path,"UTF-8")+"&raw=1&t="+System.currentTimeMillis());
-        String host=new URL(config.getString("shareUrl")).getHost();
-        for(int redirect=0;redirect<6;redirect++) {
-            if(!"https".equals(url.getProtocol()) || !host.equals(url.getHost()))throw new IOException("不可信的下载地址");
-            HttpURLConnection connection=(HttpURLConnection)url.openConnection();
-            connection.setConnectTimeout(8000);connection.setReadTimeout(15000);connection.setInstanceFollowRedirects(false);connection.setRequestProperty("Cache-Control","no-cache");
-            connection.setRequestProperty("User-Agent","GermanWords/"+config.getString("versionName"));
-            try {
-                int status=connection.getResponseCode();
-                if(status==301 || status==302 || status==303 || status==307 || status==308) { url=new URL(url,connection.getHeaderField("Location"));continue; }
-                if(status!=200)throw new IOException("下载服务返回 "+status);
-                try(InputStream in=connection.getInputStream()) { return read(in,limit); }
-            } finally { connection.disconnect(); }
-        }
-        throw new IOException("下载重定向次数过多");
+        return ServiceHttp.request(url,new URL(config.getString("shareUrl")).getHost(),null,null,limit);
     }
     private PackageInfo installed() throws PackageManager.NameNotFoundException {
         return activity.getPackageManager().getPackageInfo(activity.getPackageName(),signatureFlags());
@@ -116,7 +102,7 @@ final class UpdateManager implements AutoCloseable {
                 try(OutputStream out=new FileOutputStream(file)) { out.write(data); }
                 verifyPackage(file, release);
                 saved=savePending(file, release);
-            } catch(Exception e) { message("更新失败："+e.getMessage()); }
+            } catch(Exception e) { message("更新未完成，请检查网络后重试"); }
             finally {
                 if(!saved && file!=null)file.delete();
                 busy.set(false);
@@ -195,7 +181,7 @@ final class UpdateManager implements AutoCloseable {
             } catch(Exception e) {
                 if(sessionId>=0)try{activity.getPackageManager().getPackageInstaller().abandonSession(sessionId);}catch(Exception ignored){}
                 clearPending();
-                message("无法启动安装，请重新检查更新："+e.getMessage());
+                message("无法启动安装，请重新检查更新");
             } finally { busy.set(false); }
         });
     }

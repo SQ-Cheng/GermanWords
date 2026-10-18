@@ -11,6 +11,8 @@ const assert = require('node:assert/strict');
     page.on('pageerror', error => errors.push(error.message));
     await page.waitForFunction(() => typeof currentFileWords !== 'undefined' && currentFileWords.length > 0);
     assert.equal(await page.evaluate(() => !!window.__TAURI__), true);
+    assert.equal(await page.evaluate(() => window.__TAURI__.app.getVersion()), require('../shared/app-config.json').versionName);
+    assert.equal(await page.locator('#appVersion').textContent(), ' · ' + require('../shared/app-config.json').versionName);
     const initial = await page.evaluate(() => ({marks:localStorage.getItem(MarkStore.key), theme:localStorage.getItem('german_theme_v1'), rate:Playback.getRate()}));
     try {
       const totals = await page.evaluate(async () => {
@@ -75,6 +77,11 @@ const assert = require('node:assert/strict');
         }
         await page.screenshot({path:require('node:path').resolve(__dirname, `../artifacts/desktop-${width}.png`)});
       }
+      await page.locator('#openLibrary').click();
+      await page.locator('#openFeedback').click();
+      assert.equal(await page.locator('#feedbackDialog').evaluate(el => el.open), true);
+      assert.equal(await page.evaluate(() => document.body.classList.contains('library-open')), false);
+      await page.locator('#feedbackCancel').click();
       assert.deepEqual(errors, []);
       console.log('PASS: real Tauri WebView2, built-in 460 words/audio, backup download/validation/restore, retained data after reload, themes, 480–1120px, drawer, circular controls');
     } finally {

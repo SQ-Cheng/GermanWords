@@ -46,3 +46,9 @@ Windows 桌面迁移后，先运行 `python tools/build-windows.py`，浏览器�
 合并前 P2 回归：`test-desktop.mjs` 检查备份的内存存储回退及启动词库的过期请求；Android 引擎测试检查主题/语速备份、旧格式兼容和非法字段不覆盖。真机入口还运行 `UpdateChecks`，验证更新信息签名、待安装记录跨管理器恢复、过期任务拒绝保存、损坏缓存拒绝及取消清理，不打开系统安装器。
 
 发布工具回归执行 `python tests/test_updates.py`，无需上传权限或真实私钥。完整签名测试需要官方 Minisign（PATH 或 `MINISIGN`），没有安装时会明确跳过该测试。Rust 重定向策略执行 `cargo test --locked`（在 `apps/windows/src-tauri/`），静态检查执行 `cargo clippy --locked -- -D warnings`。
+
+导航与反馈回归：浏览器检查翻页边界、列表定位、放大后的圆形按钮，以及反馈失败保留内容/重试/不显示原始异常；使用注入发送函数，不上传真实反馈。Android 真机入口验证实际点击翻页、进度条拖动、100～200% 字号、反馈对话框和返回操作；原生元数据与输入限制由设备测试和 Rust 单元测试覆盖。发布工具回归验证一个双端签名索引、版本子目录上传及索引最后发布，不进行真实发布。实际反馈端到端上传须由维护者单独提交明确标记的测试内容，避免每次回归产生垃圾反馈。
+
+需要实际上传时，在已安装应用启用测试 CDP 连接后，显式执行 `node tests/feedback-live.cjs http://127.0.0.1:PORT android --send-test-report`（Windows 改为 `windows`）。每次只提交一份标明“自动化验证、可删除”的 JSON；不会随普通测试自动执行。Android 根据调试目标的可见状态选取前台 WebView，避免误操作后台 Activity。
+
+4.2.1 合并前检查补充：原生 Windows 回归必须实际点击反馈入口，覆盖 CSP 下的事件绑定；发布器拒绝调试 APK 与大于 64 KiB 的更新索引。版本显示从公共配置注入生成页面。

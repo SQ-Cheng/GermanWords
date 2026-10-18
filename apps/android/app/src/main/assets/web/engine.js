@@ -678,6 +678,7 @@
 
       // === 键盘事件 ===
       document.addEventListener("keydown", function (e) {
+        if (document.querySelector("dialog[open]")) return;
         if (displayWords.length === 0) return;
 
         // 焦点在输入控件里时不抢按键

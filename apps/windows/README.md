@@ -4,7 +4,7 @@ Tauri 2 + 系统 WebView2，学习界面继续采用普通 HTML/CSS/JavaScript�
 
 ## 开发
 
-需要 Python 3、Node.js 22+、pnpm、Rust stable MSVC、Visual Studio C++ 桌面工具链和 WebView2。已有 Rust 时直接使用；首次安装若希望放在 E 盘，应先设置 `CARGO_HOME=E:\Rust\cargo`、`RUSTUP_HOME=E:\Rust\rustup`，再运行官方 rustup 安装器，将 Cargo bin 加入用户 PATH，重开终端。不要把本机路径写进项目文件。
+需要 Python 3.10+、Node.js 22+、pnpm、Rust stable MSVC、Visual Studio C++ 桌面工具链和 WebView2。已有 Rust 时直接使用；首次安装若希望放在 E 盘，应先设置 `CARGO_HOME=E:\Rust\cargo`、`RUSTUP_HOME=E:\Rust\rustup`，再运行官方 rustup 安装器，将 Cargo bin 加入用户 PATH，重开终端。不要把本机路径写进项目文件。
 
 ```powershell
 pnpm --dir apps/windows install --frozen-lockfile
@@ -37,15 +37,15 @@ pnpm --dir apps/windows build
 
 生成按用户安装的 NSIS `*-setup.exe` 和对应 `.sig`，默认在 Cargo target 的 `release/bundle/nsis/` 下。无需管理员权限安装应用本体；缺少 WebView2 时，安装器会引导安装运行时，需要联网及系统允许。完全离线、运行时缺失的电脑需事先部署 WebView2；不声称当前小安装包解决该场景。
 
-更新仍使用当前清华云盘，自动每天检查至多一次，也可从「词库与设置」手动检查。下载前询问，官方插件验签后启动安装器并关闭当前应用。断网与更新失败不影响离线学习。安装器采用常规 Windows 进度界面。
+更新来源与另一端统一维护，自动每天检查至多一次，也可从「词库与设置」手动检查。下载前询问，官方插件验签后启动安装器并关闭当前应用。断网与更新失败不影响离线学习。安装器采用常规 Windows 进度界面。
 
 维护端发布：
 
 ```powershell
-python tools/publish-update.py publish-windows --installer "x86_64=<安装包路径>" --upload-url <上传链接> --notes "更新说明"
+python tools/publish-update.py publish --apk "<同版本已签名APK>" --installer "x86_64=<安装包路径>" --key "<RSA私钥>" --upload-url "<开发者可写目录链接>" --notes "更新说明" --prepare-only
 ```
 
-可重复传入 `--installer "aarch64=<安装包路径>"`；同次发布需列出全部已支持架构。每个输入旁必须有 Tauri 生成的同名 `.sig`。签名私钥、上传链接不进入仓库。此命令只更新独立的 Windows 元数据文件，不修改 Android / 旧 Windows 的 RSA 更新信息。
+可重复传入 `--installer "aarch64=<安装包路径>"`；同次发布需列出全部已支持架构。每个输入旁必须有 Tauri 生成的同名 `.sig`。签名私钥、上传链接不进入仓库。此命令先在本地生成一个双端更新索引；去掉 `--prepare-only` 才会上传两个平台的包，最后更新根目录索引。不修改旧下载目录。
 
 发布前需安装[官方 Minisign](https://jedisct1.github.io/minisign/)，将其加入 PATH 或设置 `MINISIGN` 为可执行文件路径。发布器用它验证安装包与可信注释，再核对注释绑定的版本和架构；旧包重命名、签名不匹配或架构选择错误都会在上传前失败。此工具仅供维护发布，不打包进应用。
 
@@ -67,3 +67,5 @@ pnpm --dir tests test:browser
 `tests/desktop.cjs` 针对真实 Tauri WebView2 执行，不用普通浏览器模拟桌面宿主。测试时才给子进程设置 `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9223` 和隔离的 `WEBVIEW2_USER_DATA_FOLDER`，再运行 `node tests/desktop.cjs`；正常使用不要设置调试端口。测试下载和截图不参与应用打包。
 
 首轮目标 Windows 10/11 x64；ARM64 可以用 Tauri 的 `--target aarch64-pc-windows-msvc` 构建，需安装相应 Rust target 和 Visual Studio ARM64 工具链，发布前另做真机验证。不能把架构可编译等同于已适配测试。
+
+双端共用根目录更新索引，包放在版本子目录。先用 `--prepare-only` 校验，再去掉参数执行发布；完整步骤见 [更新维护](../../docs/updates.md)。词库与设置中的“意见反馈”仅在点击提交时发送内容和基本设备/应用信息；失败保留文字。

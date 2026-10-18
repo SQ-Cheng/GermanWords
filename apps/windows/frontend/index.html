@@ -3,18 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>德语单词 4.2.0-beta.5</title>
+  <title>德语单词</title>
   <script src="../../../shared/theme.js"></script>
   <script src="../../../shared/playback.js"></script>
   <script src="../../../shared/vocabulary.js"></script>
   <link rel="stylesheet" href="windows.css" />
   <link rel="stylesheet" href="../../../shared/theme.css" />
+  <link rel="stylesheet" href="../../../shared/feedback.css" />
 </head>
 <body>
   <button id="scrim" aria-label="关闭词库"></button>
   <aside class="sidebar" aria-label="词库与设置">
     <div class="drawer-heading"><h2>词库与设置</h2><button id="closeLibrary" class="icon-button library-toggle" aria-label="关闭词库">×</button></div>
-    <p class="sidebar-desc">GermanWords · 4.2.0-beta.5</p>
+    <p class="sidebar-desc">GermanWords<span id="appVersion"></span></p>
     <div class="btn-group">
       <label for="folderInput" class="upload-btn">＋ 导入文件夹</label>
       <input type="file" id="folderInput" webkitdirectory directory multiple />
@@ -26,7 +27,7 @@
     <div class="sidebar-status" id="sidebarStatus"></div>
     <label class="theme-setting" for="playbackRate">语速<select id="playbackRate"><option value="0.75">0.75×</option><option value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option></select></label>
     <label class="theme-setting" for="themeSelect">主题<select id="themeSelect"><option value="auto">跟随系统</option><option value="light">昼间</option><option value="dark">夜间</option></select></label>
-    <div class="settings-actions"><button id="checkUpdates" hidden>检查更新</button><button id="exportBackup">导出星标与设置</button><label for="backupInput" class="text-button">导入备份</label><input id="backupInput" type="file" accept=".json,application/json" /></div>
+    <div class="settings-actions"><button id="checkUpdates" hidden>检查更新</button><button id="openFeedback" hidden>意见反馈</button><button id="exportBackup">导出星标与设置</button><label for="backupInput" class="text-button">导入备份</label><input id="backupInput" type="file" accept=".json,application/json" /></div>
     <p id="updateStatus" class="sidebar-status" role="status"></p>
     <p class="shortcut-hint">← / → 翻页 · Q 答案 · 空格星标</p>
   </aside>
@@ -40,7 +41,6 @@
     </div>
     <div id="app-container">
       <div id="cardViewContainer" class="card-wrapper" style="display:none">
-        <button id="btnPrevCard" class="nav-btn" title="上一个（← 或 2）" aria-label="上一个">‹</button>
         <div id="cardView" class="card bg-other">
           <button class="star-mark" aria-label="星标单词">☆</button>
           <div id="germanArea" class="card-content-area"><div class="card-german" id="cardGerman">Willkommen</div></div>
@@ -48,13 +48,13 @@
           <div id="chineseArea" class="card-content-area"><div class="card-chinese" id="cardChinese"></div></div>
           <div id="metaArea" class="card-content-area"><div class="card-tags"><span class="tag" id="cardType"></span><span class="tag" id="cardGender" style="display:none"></span></div><div class="card-plural" id="cardPlural"></div></div>
           <div id="exampleArea" class="card-content-area"><div class="card-example" id="cardExample"></div></div>
-          <div class="hint-text" id="clickHint">点击卡片或按 Q 显示答案</div><div class="counter-info" id="cardIndexInfo"></div>
+          <div class="hint-text" id="clickHint">点击卡片或按 Q 显示答案</div>
         </div>
-        <button id="btnNextCard" class="nav-btn" title="下一个（→ 或 4）" aria-label="下一个">›</button>
       </div>
       <div id="listViewContainer" class="list-view-container" style="display:none"><div class="table-scroll"><table id="wordTable"><thead><tr><th>德语</th><th>中文</th><th>词性</th><th>复数</th><th>例句</th><th>操作</th></tr></thead><tbody></tbody></table></div></div>
       <div id="emptyState" class="empty-state"><h2>选择词表，开始学习</h2><p>桌面版内置词库，也可导入自己的词表与录音。</p></div>
     </div>
+    <footer class="study-navigation"><button id="btnPrevCard" class="nav-btn" title="上一个（← 或 2）" aria-label="上一个"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button><span class="counter-info" id="cardIndexInfo" aria-live="polite"></span><button id="btnNextCard" class="nav-btn" title="下一个（→ 或 4）" aria-label="下一个"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></footer>
   </main>
   <div id="notice" class="notice" role="status"></div>
   <dialog id="updateDialog"><h2>发现新版本</h2><p id="updateNotes"></p><p>下载后将关闭应用并安装，星标和设置会保留。</p><div class="dialog-actions"><button id="deferUpdate">稍后</button><button id="installUpdate" class="primary-button">下载并更新</button></div></dialog>
@@ -62,6 +62,7 @@
   <script src="../../../shared/audio.js"></script>
   <script src="../../../shared/marks.js"></script>
   <script src="app.js"></script>
+  <script src="../../../shared/feedback.js"></script>
   <script src="desktop.js"></script>
 </body>
 </html>

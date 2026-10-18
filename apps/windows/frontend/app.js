@@ -107,6 +107,8 @@ function playPronounce(word) {
   audio.addEventListener(
     "error",
     function () {
+      if (currentAudio !== audio) return;
+      currentAudio = null;
       notify("音频加载失败：" + src.label + "（请确认 words 文件夹完整）", "error");
     },
     { once: true }
@@ -117,8 +119,15 @@ function playPronounce(word) {
   currentAudio = audio;
   const played = audio.play();
   if (played && typeof played.catch === "function") {
-    played.catch(function () {
-      notify("浏览器拦截了自动播放，点一下卡片或 🔊 即可播放", "warn");
+    played.catch(function (error) {
+      if (currentAudio !== audio) return;
+      currentAudio = null;
+      if (error.name === "AbortError") return;
+      if (error.name === "NotAllowedError") {
+        notify("暂时无法自动播放，请点击卡片或发音按钮。", "warn");
+      } else {
+        notify("音频播放失败，请重试。", "error");
+      }
     });
   }
 }
@@ -375,6 +384,7 @@ function updateNav() {
   const prev = document.getElementById("btnPrevCard");
   const next = document.getElementById("btnNextCard");
   if (!prev || !next) return;
+  document.getElementById("cardIndexInfo").innerText = displayWords.length ? `${currentIndex + 1} / ${displayWords.length}` : "0 / 0";
   prev.disabled = currentIndex <= 0;
   next.disabled =
     displayWords.length === 0 || currentIndex >= displayWords.length - 1;
@@ -653,19 +663,19 @@ function toggleListReveal(word) {
 
 // === 交互操作 ===
 function nextCard() {
-  if (currentIndex < displayWords.length - 1) {
-    currentIndex++;
-    isRevealed = false;
-    renderCard();
-  }
+  if (currentIndex < displayWords.length - 1) navigateTo(currentIndex + 1);
 }
 
 function prevCard() {
-  if (currentIndex > 0) {
-    currentIndex--;
-    isRevealed = false;
-    renderCard();
-  }
+  if (currentIndex > 0) navigateTo(currentIndex - 1);
+}
+
+function navigateTo(index) {
+  currentIndex = index;
+  isRevealed = false;
+  updateUI();
+  if (currentView === 'list') document.querySelectorAll('#wordTable tbody tr')[index].scrollIntoView({block:'nearest'});
+  else document.getElementById('cardView').scrollTop = 0;
 }
 
 function toggleCurrentMark() {

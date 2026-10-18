@@ -13,7 +13,7 @@ function fixture(native = false) {
   };
   const localStorage = {getItem:key => saved.get(key) || null,
     setItem(key, value) { if (blocked) throw Error('quota'); saved.set(key, value); }};
-  const context = vm.createContext({window:{__TAURI__:native ? {core:{invoke:async () => null}} : undefined},
+  const context = vm.createContext({Feedback:{setSender(){}},window:{__TAURI__:native ? {core:{invoke:async () => null}} : undefined},
     localStorage, document:{getElementById:get, createElement:() => ({click(){}})},
     Blob:class {constructor(parts) { backup = JSON.parse(parts[0]); }},
     URL:class extends URL {static createObjectURL() {return 'blob:backup';} static revokeObjectURL(){}},
@@ -54,6 +54,7 @@ for (const failure of [false,true]) {
   assert.deepEqual(f.notices,[]);
 }
 const initial = fixture(true);
+assert.equal(initial.get('openFeedback').hidden, false, 'Native host exposes feedback');
 initial.resolve();
 await new Promise(resolve => setImmediate(resolve));
 assert.deepEqual(initial.imports,['built-in.xlsx']);

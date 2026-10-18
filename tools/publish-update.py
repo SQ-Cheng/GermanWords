@@ -1,4 +1,4 @@
-"""Package a test build, or sign and publish it to a Seafile upload link.
+"""Validate, sign and publish dual-platform releases to a writable directory share.
 
 Requires cryptography for manifest signing only. No credentials are stored here.
 """
@@ -10,7 +10,6 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import urllib.parse
 import urllib.request
@@ -37,12 +36,16 @@ def sdk_tool(name):
 
 
 def verify_apk(apk, config):
+    if not 0 < apk.stat().st_size <= 33554432:
+        raise ValueError('APK exceeds the Android 32 MiB limit or is empty')
     # Some Windows SDK tools cannot open a non-ASCII absolute path. Let the OS
     # select the working directory and pass only the package's filename.
     badging = subprocess.check_output([sdk_tool('aapt'), 'dump', 'badging', apk.name], cwd=apk.parent, encoding='utf-8')
     package = re.search(r"package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", badging)
     if not package or package.groups() != ('cn.study.germanwords', str(config['versionCode']), config['versionName']):
         raise ValueError('APK package/version does not match the release configuration')
+    if 'application-debuggable' in badging:
+        raise ValueError('Publish a Release APK; debug builds are not distributable')
     certs = subprocess.check_output([sdk_tool('apksigner'), 'verify', '--print-certs', apk.name], cwd=apk.parent, encoding='utf-8')
     expected = (ROOT / 'apps/android/release-certificate.sha256').read_text(encoding='utf-8').strip()
     signers = re.findall(r'Signer #\d+ certificate SHA-256 digest: ([a-fA-F0-9]+)', certs)
@@ -79,144 +82,141 @@ def read_url(url):
         return response.read()
 
 
-def package(apk, destination, config):
-    verify_apk(apk, config)
-    subprocess.run([sys.executable, str(ROOT / 'tools/build-windows.py')], check=True)
-    destination.mkdir(parents=True, exist_ok=True)
-    version = config['versionName']
-    target = destination / f'GermanWords-Android-{version}.apk'
-    if apk.resolve() != target.resolve():
-        shutil.copyfile(apk, target)
-    with zipfile.ZipFile(destination / f'GermanWords-Windows-{version}.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
-        web = ROOT / 'output/windows/web'
-        for file in sorted(web.rglob('*')):
-            if file.is_file():
-                relative = file.relative_to(web).as_posix()
-                archive.write(file, 'De_words_helper.html' if relative == 'index.html' else relative)
-        archive.write(CONFIG, 'app-config.json')
-    print(f'Packaged {version} in {destination}')
-
-
-def publish(args, config):
+def prepare_release(args, config):
+    """Validate every input before any remote write; produce one dual-platform index."""
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import padding
 
-    verify_apk(args.directory / f"GermanWords-Android-{config['versionName']}.apk", config)
-    with zipfile.ZipFile(args.directory / f"GermanWords-Windows-{config['versionName']}.zip") as archive:
-        if json.loads(archive.read('app-config.json')) != config:
-            raise ValueError('Legacy ZIP configuration does not match this release')
+    version = config['versionName']
+    if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?', version):
+        raise ValueError('Invalid release version')
+    verify_apk(args.apk, config)
     key = serialization.load_pem_private_key(args.key.read_bytes(), password=None)
     numbers = key.public_key().public_numbers()
     expected = config['publicKey']
     if numbers.n != int.from_bytes(base64.b64decode(expected['modulus']), 'big') or numbers.e != int.from_bytes(base64.b64decode(expected['exponent']), 'big'):
-        raise ValueError('Signing key does not match the public key in app-config.json')
+        raise ValueError('Signing key does not match app-config.json')
+    installers = []
+    for entry in args.installer:
+        arch, source = entry.split('=', 1)
+        if arch not in {'x86_64', 'aarch64'} or any(item[0] == arch for item in installers):
+            raise ValueError('Invalid or duplicate installer architecture')
+        file = Path(source)
+        installers.append((arch, file, verify_installer(file, arch, config)))
+    args.directory.mkdir(parents=True, exist_ok=True)
+    files = []
+    def stage(source, name):
+        target = args.directory / name
+        if source.resolve() != target.resolve():
+            shutil.copyfile(source, target)
+        files.append(target)
+        return target
+    apk = stage(args.apk, f'GermanWords-Android-{version}.apk')
     release = dict(schema=1, channel=config['channel'], versionCode=config['versionCode'],
-                   versionName=config['versionName'], notes=args.notes)
-    files = list(args.extra)
-    for platform, extension in [('android', 'apk'), ('windows', 'zip')]:
-        file = args.directory / f"GermanWords-{platform.title()}-{config['versionName']}.{extension}"
-        data = file.read_bytes()
-        release[platform] = dict(file=file.name, size=len(data), sha256=hashlib.sha256(data).hexdigest())
-        files.append(file)
+                   versionName=version, notes=args.notes,
+                   android=dict(file=f'{version}/{apk.name}', size=apk.stat().st_size,
+                                sha256=hashlib.sha256(apk.read_bytes()).hexdigest()))
+    platforms = {}
+    for arch, source, signature in installers:
+        file = stage(source, f'GermanWords-Windows-{version}-{arch}-Setup.exe')
+        platforms['windows-' + arch] = dict(url=download_url(config, f'{version}/{file.name}'), signature=signature)
+        stage(Path(str(source) + '.sig'), file.name + '.sig')
+    for file in args.extra:
+        if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9._-]*', file.name) or file.name == Path(config['manifestPath']).name or any(f.name == file.name for f in files):
+            raise ValueError('Unsafe or duplicate extra filename')
+        stage(file, file.name)
     payload = json.dumps(release, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
     signature = key.sign(payload, padding.PKCS1v15(), hashes.SHA256())
     manifest = args.directory / config['manifestPath'].lstrip('/')
-    manifest.write_text(json.dumps(dict(payload=base64.b64encode(payload).decode(),
-                                        signature=base64.b64encode(signature).decode())), encoding='utf-8')
-    # Publish the signed manifest last: clients never see a release before its files exist.
-    files.append(manifest)
-    upload_files(files, manifest, args.upload_url, config)
+    # Tauri reads version/platforms; Android verifies the RSA envelope in this same file.
+    index = json.dumps(dict(version=version, notes=args.notes, platforms=platforms,
+        payload=base64.b64encode(payload).decode(), signature=base64.b64encode(signature).decode()),
+        ensure_ascii=False, indent=2).encode('utf-8')
+    if len(index) > 65536:
+        raise ValueError('Update index exceeds the Android 64 KiB limit; shorten the release notes')
+    manifest.write_bytes(index)
+    return files + [manifest], manifest
+
+
+def download_url(config, path):
+    return config['shareUrl'] + 'files/?p=' + urllib.parse.quote('/' + path, safe='') + '&raw=1'
 
 
 def upload_files(files, manifest, upload_url, config):
+    import ast
     upload = urllib.parse.urlparse(upload_url)
-    if upload.scheme != 'https' or upload.hostname != urllib.parse.urlparse(config['shareUrl']).hostname:
-        raise ValueError('Use an HTTPS upload link on the configured cloud host')
+    host = urllib.parse.urlparse(config['shareUrl']).hostname
+    if upload.scheme != 'https' or upload.hostname != host or not re.fullmatch(r'/d/[a-f0-9]+/', upload.path):
+        raise ValueError('Use a writable HTTPS directory share on the configured host')
+    # This is the same directory-upload API used by the service's own web client.
+    page = read_url(upload_url).decode('utf-8')
+    match = re.search(r"dirPath:\s*('(?:\\.|[^'])*')", page)
+    if not match or not re.search(r'canUpload:\s*true', page):
+        raise ValueError('The developer share does not allow uploads')
+    parent = ast.literal_eval(match.group(1))
+    if not parent.startswith('/') or '..' in parent.split('/'):
+        raise ValueError('Invalid shared directory')
     token = upload.path.rstrip('/').split('/')[-1]
-    endpoint = f'https://{upload.netloc}/api/v2.1/upload-links/{token}/upload/'
-    link = json.loads(read_url(endpoint))['upload_link']
-    if urllib.parse.urlparse(link).hostname != upload.hostname or not link.startswith('https://'):
+    link = json.loads(read_url(f'https://{upload.netloc}/api/v2.1/share-links/{token}/upload/?path=%2F'))['upload_link']
+    target = urllib.parse.urlparse(link)
+    if target.scheme != 'https' or target.hostname != host or target.port not in (None, 443):
         raise ValueError('Unexpected upload server')
     share_token = urllib.parse.urlparse(config['shareUrl']).path.rstrip('/').split('/')[-1]
-    listing = json.loads(read_url(f'https://{upload.netloc}/api/v2.1/share-links/{share_token}/dirents/?path=%2F'))
-    existing_names = {entry['file_name'] for entry in listing['dirent_list'] if not entry['is_dir']}
+    listing_url = f'https://{upload.netloc}/api/v2.1/share-links/{share_token}/dirents/?path='
+    root = json.loads(read_url(listing_url + '%2F'))['dirent_list']
+    version = config['versionName']
+    version_exists = any(e['is_dir'] and e['file_name'] == version for e in root)
+    existing = json.loads(read_url(listing_url + urllib.parse.quote('/' + version, safe='')))['dirent_list'] if version_exists else []
+    existing_names = {e['file_name'] for e in existing if not e['is_dir']}
     for file in files:
+        is_index = file == manifest
+        path = file.name if is_index else f'{version}/{file.name}'
         data = file.read_bytes()
-        url = config['shareUrl'] + 'files/?p=' + urllib.parse.quote('/' + file.name, safe='') + '&raw=1&t=' + uuid.uuid4().hex
-        if file != manifest and file.name in existing_names:
-            existing = read_url(url)
-            if hashlib.sha256(existing).digest() != hashlib.sha256(data).digest():
-                raise ValueError(f'Existing versioned package differs; increment the version: {file.name}')
-            print(f'Already published and verified: {file.name}')
+        url = download_url(config, path) + '&t=' + uuid.uuid4().hex
+        if not is_index and file.name in existing_names:
+            if hashlib.sha256(read_url(url)).digest() != hashlib.sha256(data).digest():
+                raise ValueError(f'Existing package differs; increment the version: {path}')
+            print(f'Already published and verified: {path}')
             continue
         boundary = uuid.uuid4().hex
-        body = (f'--{boundary}\r\nContent-Disposition: form-data; name="parent_dir"\r\n\r\n/\r\n'
-                f'--{boundary}\r\nContent-Disposition: form-data; name="replace"\r\n\r\n1\r\n'
-                f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{file.name}"\r\n'
-                'Content-Type: application/octet-stream\r\n\r\n').encode() + data + f'\r\n--{boundary}--\r\n'.encode()
+        fields = dict(parent_dir=parent, replace='1' if is_index else '0')
+        if not is_index:
+            fields['relative_path'] = version + '/'
+        body = b''.join((f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n').encode() for name, value in fields.items())
+        body += (f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{file.name}"\r\nContent-Type: application/octet-stream\r\n\r\n').encode() + data + f'\r\n--{boundary}--\r\n'.encode()
         request = urllib.request.Request(link + '?ret-json=1', data=body,
-                                         headers={'Content-Type': 'multipart/form-data; boundary=' + boundary})
+            headers={'Content-Type': 'multipart/form-data; boundary=' + boundary})
         with urllib.request.urlopen(request, timeout=120) as response:
             result = json.load(response)
         if len(result) != 1 or result[0]['name'] != file.name:
-            raise RuntimeError('The cloud renamed the uploaded file')
+            raise RuntimeError('The service renamed the uploaded file')
         if hashlib.sha256(read_url(url)).digest() != hashlib.sha256(data).digest():
-            raise RuntimeError(f'Readback verification failed: {file.name}')
-        print(f'Uploaded and verified: {file.name}')
+            raise RuntimeError(f'Readback verification failed: {path}')
+        print(f'Uploaded and verified: {path}')
         existing_names.add(file.name)
-
-
-def publish_windows(args, config):
-    args.directory.mkdir(parents=True, exist_ok=True)
-    version = config['versionName']
-    files = list(args.extra)
-    platforms = {}
-    for entry in args.installer:
-        arch, source = entry.split('=', 1)
-        if arch not in {'x86_64', 'aarch64'}:
-            raise ValueError('Installer architecture must be x86_64 or aarch64')
-        if 'windows-' + arch in platforms:
-            raise ValueError('Duplicate installer architecture: ' + arch)
-        installer = Path(source)
-        signature = verify_installer(installer, arch, config)
-        name = f'GermanWords-Windows-{version}-{arch}-Setup.exe'
-        target = args.directory / name
-        if target.resolve() != installer.resolve():
-            shutil.copyfile(installer, target)
-        url = config['shareUrl'] + 'files/?p=' + urllib.parse.quote('/' + name, safe='') + '&raw=1'
-        platforms['windows-' + arch] = dict(url=url, signature=signature)
-        files.append(target)
-    manifest = args.directory / config['windowsUpdater']['manifestPath'].lstrip('/')
-    manifest.write_text(json.dumps(dict(version=version, notes=args.notes, platforms=platforms), ensure_ascii=False, indent=2), encoding='utf-8')
-    upload_files(files + [manifest], manifest, args.upload_url, config)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    commands = parser.add_subparsers(dest='command', required=True)
-    pack = commands.add_parser('package')
-    pack.add_argument('--apk', type=Path, required=True, help='Already signed APK matching app-config.json')
-    pack.add_argument('--directory', type=Path, default=ROOT / 'output/releases/update-test')
-    pub = commands.add_parser('publish')
-    pub.add_argument('--directory', type=Path, default=ROOT / 'output/releases/update-test')
-    pub.add_argument('--key', type=Path, required=True, help='Private RSA PEM, kept outside this repository')
-    pub.add_argument('--upload-url', required=True, help='Private upload link; never commit it')
-    pub.add_argument('--notes', required=True)
-    pub.add_argument('--extra', type=Path, nargs='*', default=[], help='Optional seed packages to upload first')
-    desktop = commands.add_parser('publish-windows', help='Publish Tauri installers; does not touch the legacy/Android feed')
-    desktop.add_argument('--directory', type=Path, default=ROOT / 'output/releases/desktop-test')
-    desktop.add_argument('--installer', action='append', required=True, help='x86_64=PATH or aarch64=PATH; include all released architectures')
-    desktop.add_argument('--upload-url', required=True)
-    desktop.add_argument('--notes', required=True)
-    desktop.add_argument('--extra', type=Path, nargs='*', default=[])
+    parser.add_argument('command', choices=['publish'])
+    parser.add_argument('--apk', type=Path, required=True)
+    parser.add_argument('--installer', action='append', required=True, help='x86_64=PATH or aarch64=PATH; list all architectures')
+    parser.add_argument('--directory', type=Path, default=ROOT / 'output/releases/prepared')
+    parser.add_argument('--key', type=Path, required=True, help='Private RSA PEM outside this repository')
+    parser.add_argument('--upload-url', default=os.environ.get('GERMANWORDS_RELEASE_UPLOAD_URL'))
+    parser.add_argument('--notes', required=True)
+    parser.add_argument('--extra', type=Path, nargs='*', default=[])
+    parser.add_argument('--prepare-only', action='store_true', help='Validate and prepare locally without uploading')
     args = parser.parse_args()
+    if not args.prepare_only and not args.upload_url:
+        parser.error('--upload-url or GERMANWORDS_RELEASE_UPLOAD_URL is required')
     config = json.loads(CONFIG.read_text(encoding='utf-8'))
-    if args.command == 'package':
-        package(args.apk, args.directory, config)
-    elif args.command == 'publish':
-        publish(args, config)
+    files, manifest = prepare_release(args, config)
+    if args.prepare_only:
+        print(f'Prepared {manifest}; nothing uploaded')
     else:
-        publish_windows(args, config)
+        # The root index is always last, after all immutable packages were read back.
+        upload_files(files, manifest, args.upload_url, config)
 
 
 if __name__ == '__main__':

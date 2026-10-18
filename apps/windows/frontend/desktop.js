@@ -1,3 +1,10 @@
+Feedback.setSender(message => window.__TAURI__.core.invoke('submit_feedback', {message, userAgent:navigator.userAgent}));
+document.getElementById('openFeedback').onclick = () => {
+  closeLibrary();
+  pauseStudyAudio();
+  Feedback.open();
+};
+
 // Platform integration stays outside the learning engine.
 const Desktop = (function () {
   const native = window.__TAURI__;
@@ -20,7 +27,7 @@ const Desktop = (function () {
       const dialog = document.getElementById('updateDialog');
       document.getElementById('updateNotes').textContent = update.version + '\n\n' + update.notes;
       dialog.showModal();
-    } catch (error) { if (manual) status.textContent = '检查失败：' + String(error); }
+    } catch (error) { if (manual) status.textContent = '暂时无法检查更新，请稍后重试'; }
     finally { busy = false; button.disabled = false; }
   }
   async function installUpdate() {
@@ -31,7 +38,7 @@ const Desktop = (function () {
     document.getElementById('checkUpdates').disabled = true;
     status.textContent = '正在下载更新，完成后将关闭应用并安装，请稍候…';
     try { await native.core.invoke('install_update'); }
-    catch (error) { status.textContent = '更新失败：' + String(error); }
+    catch (error) { status.textContent = '更新未完成，请检查网络后重试'; }
     finally { busy = false; document.getElementById('checkUpdates').disabled = false; }
   }
   async function loadBuiltIn() {
@@ -56,8 +63,9 @@ const Desktop = (function () {
     } catch (error) { if (sequence === loadSequence) notify('载入词库失败：' + error.message, 'error'); }
   }
   if (native) {
+    document.getElementById('openFeedback').hidden = false;
     document.getElementById('checkUpdates').hidden = false;
-    document.getElementById('updateStatus').textContent = '离线学习 · 清华云盘更新';
+    document.getElementById('updateStatus').textContent = '离线学习';
     loadBuiltIn();
     checkUpdates(false);
   }

@@ -1,4 +1,20 @@
 'use strict';
+function openFeedback() {
+  closeLibrary();
+  pauseStudyAudio();
+  Feedback.open();
+}
+let feedbackCompletion;
+Feedback.setSender(message => new Promise((resolve, reject) => {
+  feedbackCompletion = {resolve, reject};
+  Android.submitFeedback(message, navigator.userAgent);
+}));
+function finishFeedback(success) {
+  if (!feedbackCompletion) return;
+  if (success) feedbackCompletion.resolve(); else feedbackCompletion.reject(new Error('提交失败'));
+  feedbackCompletion = null;
+}
+
 document.addEventListener('themechange', event => {
   if (window.Android) Android.setDarkMode(event.detail);
 });
@@ -52,7 +68,7 @@ function closeLibrary() {
   document.getElementById('library').classList.remove('open');
   document.getElementById('scrim').classList.remove('open');
 }
-function handleAndroidBack() { if (libraryOpen) { closeLibrary(); return true; } return false; }
+function handleAndroidBack() { if (typeof Feedback !== 'undefined' && Feedback.back()) return true; if (libraryOpen) { closeLibrary(); return true; } return false; }
 function setImportBusy(busy) {
   importBusy = busy;
   document.querySelectorAll('.btn-group button').forEach(b => b.disabled = busy);
@@ -99,6 +115,8 @@ function paintStudy() {
   progress.value = currentIndex;
   progress.disabled = displayWords.length <= 1;
   paintProgress(currentIndex);
+  document.getElementById('btnPrevCard').disabled = !displayWords.length || currentIndex <= 0;
+  document.getElementById('btnNextCard').disabled = !displayWords.length || currentIndex >= displayWords.length - 1;
   const star = document.querySelector('.star-mark');
   const word = displayWords[currentIndex];
   star.textContent = word && word.marked ? '★' : '☆';

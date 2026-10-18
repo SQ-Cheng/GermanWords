@@ -16,12 +16,13 @@ GermanWords 是面向 Android 和 Windows 的离线德语词汇学习工具，�
 - 支持德语和中文搜索，兼容变音符号及 ß/ss 匹配。
 - 录音支持 0.75×、1×、1.25×、1.5× 语速。
 - 提供昼间、夜间和跟随系统三种主题。
-- Android 支持滑动翻页、拖动学习进度条及学习位置恢复。
+- 双端提供底部上一个 / 下一个按钮；Android 还支持滑动翻页、拖动学习进度条及学习位置恢复。
+- 可从词库与设置中提交意见反馈，失败时保留填写内容。
 - 支持星标和设置备份；Android 还可备份学习位置与模式。备份不包含自定义词库和录音。
 
 ## 最新版本与安装
 
-当前最新预发布版为 [**4.2.0-beta.5**](https://github.com/SQ-Cheng/GermanWords/releases/tag/v4.2.0-beta.5)，提供 Android APK、Windows x64 桌面安装包、旧版迁移包及 SHA-256 校验文件。正式版与历史安装包见 GitHub Releases；预发布版以对应发布页说明为准。
+当前最新预发布版为 [**4.2.1-beta.1**](https://github.com/SQ-Cheng/GermanWords/releases/tag/v4.2.1-beta.1)，提供 Android APK、Windows x64 桌面安装包、旧版迁移包及 SHA-256 校验文件。本版增加双端底部翻页按钮和应用内反馈，并修复 Windows 快速翻页时的播放误报。正式版与历史安装包见 GitHub Releases；预发布版以对应发布页说明为准。
 
 **Android：**下载 APK 后按系统提示安装。覆盖升级须使用相同应用签名。
 
@@ -31,7 +32,7 @@ GermanWords 是面向 Android 和 Windows 的离线德语词汇学习工具，�
 
 ## 源码与开发
 
-本仓库同时维护 Android 和 Windows 客户端。开发源码可能领先于公开安装包；复现已发布版本请检出相应 Git 标签，例如 `v4.2.0-beta.5`。功能修改在开发分支中进行，本机 SDK 路径、私钥和构建产物不提交到 Git。
+本仓库同时维护 Android 和 Windows 客户端。开发源码可能领先于公开安装包；复现已发布版本请检出相应 Git 标签，例如 `v4.2.1-beta.1`。功能修改在开发分支中进行，本机 SDK 路径、私钥和构建产物不提交到 Git。
 
 | 目录 | 职责 |
 | --- | --- |
@@ -39,7 +40,7 @@ GermanWords 是面向 Android 和 Windows 的离线德语词汇学习工具，�
 | `apps/windows/frontend/` | Windows 学习界面及桌面适配 |
 | `apps/windows/src-tauri/` | Tauri 宿主、平台更新与安装配置 |
 | `shared/words/` | 两端共用的 Excel 词库与录音 |
-| `shared/` | 词表解析、搜索、录音匹配、星标、语速、主题及版本配置 |
+| `shared/` | 词表解析、搜索、录音匹配、星标、语速、主题、反馈表单及版本配置 |
 | `tools/` | 构建与维护发布工具 |
 | `tests/` | 公共逻辑、浏览器与设备测试入口 |
 | `docs/` | 架构与维护文档 |
@@ -61,7 +62,7 @@ cd apps/android
 
 ### Windows
 
-需要 Python 3.9+、Node.js 22+、pnpm、Rust stable MSVC、Visual Studio C++ 桌面工具链和 WebView2。从仓库根目录执行：
+需要 Python 3.10+、Node.js 22+、pnpm、Rust stable MSVC、Visual Studio C++ 桌面工具链和 WebView2。从仓库根目录执行：
 
 ```powershell
 pnpm --dir apps/windows install --frozen-lockfile

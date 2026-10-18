@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import urllib.parse
 from unittest.mock import patch
 import zipfile
 
@@ -33,6 +34,7 @@ class ReleaseInputs(unittest.TestCase):
                 (valid.replace("versionCode='", "versionCode='0"), certificate, ValueError),
                 (valid.replace('cn.study.germanwords', 'other.app'), certificate, ValueError),
                 (valid, '0' * 64, ValueError),
+                (valid + '\napplication-debuggable', certificate, ValueError),
             ]:
                 with self.subTest(info=info, certificate=cert):
                     with patch.object(publisher, 'sdk_tool', side_effect=lambda name:name), patch.object(publisher.subprocess, 'check_output', side_effect=[info, 'Signer #1 certificate SHA-256 digest: ' + cert]):
@@ -67,20 +69,94 @@ class ReleaseInputs(unittest.TestCase):
                 installer.write_bytes(b'tampered')
                 with self.assertRaises(subprocess.CalledProcessError): publisher.verify_installer(installer, 'x86_64', config)
 
-    def test_failed_preflight_never_uploads(self):
+    def test_combined_index_binds_android_path_and_windows_signatures(self):
         from types import SimpleNamespace
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa, padding
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        number = key.public_key().public_numbers()
+        config = dict(self.config, publicKey=dict(modulus=base64.b64encode(number.n.to_bytes(256, 'big')).decode(), exponent='AQAB'))
         with tempfile.TemporaryDirectory() as directory:
-            args = SimpleNamespace(directory=Path(directory), extra=[], installer=['x86_64=wrong.exe'], notes='test', upload_url='unused')
-            with patch.object(publisher, 'verify_installer', side_effect=ValueError('wrong version')), patch.object(publisher, 'upload_files') as upload:
-                with self.assertRaises(ValueError): publisher.publish_windows(args, self.config)
+            folder = Path(directory)
+            apk, installer, secret = folder/'app.apk', folder/'app.exe', folder/'key.pem'
+            apk.write_bytes(b'apk'); installer.write_bytes(b'installer'); Path(str(installer)+'.sig').write_text('signed')
+            secret.write_bytes(key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
+            args = SimpleNamespace(apk=apk, key=secret, directory=folder/'staged', extra=[], installer=['x86_64='+str(installer)], notes='test')
+            with patch.object(publisher, 'verify_apk'), patch.object(publisher, 'verify_installer', return_value='signed'):
+                files, index = publisher.prepare_release(args, config)
+            self.assertEqual(files[-1], index)
+            envelope = json.loads(index.read_text(encoding='utf-8'))
+            payload = base64.b64decode(envelope['payload'])
+            key.public_key().verify(base64.b64decode(envelope['signature']), payload, padding.PKCS1v15(), hashes.SHA256())
+            release = json.loads(payload)
+            self.assertEqual(release['android']['file'], config['versionName']+'/GermanWords-Android-'+config['versionName']+'.apk')
+            self.assertEqual(envelope['platforms']['windows-x86_64']['signature'], 'signed')
+            self.assertIn(urllib.parse.quote('/'+config['versionName']+'/', safe=''), envelope['platforms']['windows-x86_64']['url'])
+            self.assertEqual(envelope['version'], release['versionName'])
+            args.notes = 'long notes' * 10000
+            with patch.object(publisher, 'verify_apk'), patch.object(publisher, 'verify_installer', return_value='signed'):
+                with self.assertRaisesRegex(ValueError, '64 KiB'): publisher.prepare_release(args, config)
+            args.notes = 'test'
+            with patch.object(publisher, 'verify_apk', side_effect=ValueError('wrong APK')), patch.object(publisher, 'upload_files') as upload:
+                with self.assertRaises(ValueError): publisher.prepare_release(args, config)
                 upload.assert_not_called()
 
+    def test_version_directory_uploads_before_root_index(self):
+        import io
+        version = self.config['versionName']
+        with tempfile.TemporaryDirectory() as directory:
+            apk = Path(directory)/'package.apk'; apk.write_bytes(b'apk')
+            index = Path(directory)/'update-beta.json'; index.write_bytes(b'index')
+            sent = []
+            def read(url):
+                if '/d/write/' in url: return b"dirPath: '/Release/', canUpload: true"
+                if '/upload/?' in url: return b'{"upload_link":"https://cloud.tsinghua.edu.cn/upload/temporary"}'
+                if '/dirents/' in url: return b'{"dirent_list":[]}'
+                return b'index' if 'update-beta.json' in url else b'apk'
+            def post(request, **kwargs):
+                sent.append(request.data)
+                name = 'update-beta.json' if b'filename="update-beta.json"' in request.data else 'package.apk'
+                return io.BytesIO(json.dumps([dict(name=name)]).encode())
+            # A hexadecimal token has the same shape as a real writable share.
+            with patch.object(publisher, 'read_url', side_effect=lambda url: read(url.replace('/d/abcdef/', '/d/write/'))), patch.object(publisher.urllib.request, 'urlopen', side_effect=post):
+                publisher.upload_files([apk,index],index,'https://cloud.tsinghua.edu.cn/d/abcdef/',self.config)
+            self.assertIn(('\r\n'+version+'/\r\n').encode(), sent[0])
+            self.assertIn(b'name="parent_dir"\r\n\r\n/Release/', sent[0])
+            self.assertNotIn(b'name="relative_path"',sent[-1])
+            self.assertIn(b'name="replace"\r\n\r\n1',sent[-1])
+
+    def test_existing_version_cannot_be_overwritten_with_different_bytes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            package = Path(directory)/'package.apk'; package.write_bytes(b'new')
+            index = Path(directory)/'update-beta.json'
+            def read(url):
+                if '/d/abcdef/' in url: return b"dirPath: '/Release/', canUpload: true"
+                if '/upload/?' in url: return b'{"upload_link":"https://cloud.tsinghua.edu.cn/upload/temporary"}'
+                if '/dirents/?path=%2F' in url and self.config['versionName'] not in url:
+                    return json.dumps(dict(dirent_list=[dict(is_dir=True,file_name=self.config['versionName'])])).encode()
+                if '/dirents/' in url: return b'{"dirent_list":[{"is_dir":false,"file_name":"package.apk"}]}'
+                return b'old'
+            with patch.object(publisher,'read_url',side_effect=read), patch.object(publisher.urllib.request,'urlopen') as post:
+                with self.assertRaises(ValueError): publisher.upload_files([package,index],index,'https://cloud.tsinghua.edu.cn/d/abcdef/',self.config)
+                post.assert_not_called()
+
     def test_sdk_receives_filename_and_working_directory(self):
-        apk = ROOT / 'output/releases/update-test/GermanWords-Android-test.apk'
-        with patch.object(publisher, 'sdk_tool', return_value='aapt'), patch.object(publisher.subprocess, 'check_output', return_value='invalid package') as run:
-            with self.assertRaises(ValueError): publisher.verify_apk(apk, self.config)
-            self.assertEqual(run.call_args.args[0][-1], apk.name)
-            self.assertEqual(run.call_args.kwargs['cwd'], apk.parent)
+        with tempfile.TemporaryDirectory() as directory:
+            folder = Path(directory) / '中文路径'; folder.mkdir()
+            apk = folder / 'test.apk'; apk.write_bytes(b'fixture')
+            with patch.object(publisher, 'sdk_tool', return_value='aapt'), patch.object(publisher.subprocess, 'check_output', return_value='invalid package') as run:
+                with self.assertRaises(ValueError): publisher.verify_apk(apk, self.config)
+                self.assertEqual(run.call_args.args[0][-1], apk.name)
+                self.assertEqual(run.call_args.kwargs['cwd'], apk.parent)
+
+    def test_apk_size_matches_client_limit_before_running_sdk(self):
+        with tempfile.TemporaryDirectory() as directory:
+            apk = Path(directory) / 'test.apk'
+            for size in [0, 33554433]:
+                with apk.open('wb') as file: file.truncate(size)
+                with patch.object(publisher, 'sdk_tool') as sdk:
+                    with self.assertRaisesRegex(ValueError, '32 MiB'): publisher.verify_apk(apk, self.config)
+                    sdk.assert_not_called()
 
 
 if __name__ == '__main__':

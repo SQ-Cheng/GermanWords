@@ -56,8 +56,8 @@ final class UpdateChecks {
                 .put("exponent",Base64.encodeToString(key.getPublicExponent().toByteArray(),Base64.NO_WRAP)));
         Field field=UpdateManager.class.getDeclaredField("config");field.setAccessible(true);field.set(manager,config);
         Method verify=UpdateManager.class.getDeclaredMethod("verifyRelease",byte[].class);verify.setAccessible(true);
-        JSONObject release=new JSONObject().put("schema",1).put("channel","beta").put("versionCode",10)
-                .put("android",new JSONObject().put("file","GermanWords-Android-test.apk").put("size",1).put("sha256",new String(new char[64]).replace('\0','0')));
+        JSONObject release=new JSONObject().put("schema",1).put("channel","beta").put("versionCode",10).put("versionName","4.2.0-beta.6")
+                .put("android",new JSONObject().put("file","4.2.0-beta.6/GermanWords-Android-4.2.0-beta.6.apk").put("size",1).put("sha256",new String(new char[64]).replace('\0','0')));
         byte[] payload=release.toString().getBytes(StandardCharsets.UTF_8);
         Signature signer=Signature.getInstance("SHA256withRSA");signer.initSign(pair.getPrivate());signer.update(payload);
         JSONObject envelope=new JSONObject().put("payload",Base64.encodeToString(payload,Base64.NO_WRAP))

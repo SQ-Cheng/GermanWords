@@ -16,6 +16,7 @@ process.chdir(path.resolve(__dirname,'..'));
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
       await page.goto(pathToFileURL(path.resolve(html)).href);
+      assert.equal(await page.locator('#appVersion').textContent(), html.startsWith('output/') ? ' · ' + require('../shared/app-config.json').versionName : '');
       assert.equal(await page.evaluate(() => typeof WordParser.read), 'function');
       await page.emulateMedia({colorScheme:'dark'});
       await page.waitForFunction(()=>document.documentElement.dataset.theme==='dark');
@@ -78,6 +79,53 @@ process.chdir(path.resolve(__dirname,'..'));
       await page.locator('#playbackRate').selectOption('0.75');
       assert.equal(await page.evaluate(()=>currentAudio.playbackRate),0.75,'changing the setting updates active playback');
       await page.evaluate(()=>{playPronounce=window.originalPlay;});
+      const playbackFailures = await page.evaluate(async () => {
+        pauseStudyAudio();
+        const NativeAudio = window.Audio, originalNotify = notify, messages = [];
+        window.Audio = class {
+          constructor() { this.handlers = {}; }
+          addEventListener(type, handler) { this.handlers[type] = handler; }
+          play() { return new Promise((resolve, reject) => { this.reject = reject; }); }
+          pause() {}
+        };
+        notify = (message, kind) => messages.push({message, kind});
+        try {
+          const word = displayWords[currentIndex];
+          playPronounce(word);
+          const old = currentAudio;
+          playPronounce(word);
+          const active = currentAudio;
+          old.reject(new DOMException('stale playback', 'NotAllowedError'));
+          old.handlers.error();
+          await Promise.resolve();
+          const staleIgnored = !messages.length && currentAudio === active;
+          active.reject(new DOMException('cancelled playback', 'AbortError'));
+          await Promise.resolve();
+          const abortIgnored = !messages.length && currentAudio === null;
+          playPronounce(word);
+          currentAudio.reject(new DOMException('blocked playback', 'NotAllowedError'));
+          await Promise.resolve();
+          const permissionHint = messages.length === 1 && messages[0].kind === 'warn' && messages[0].message.includes('点击卡片');
+          messages.length = 0;
+          playPronounce(word);
+          currentAudio.reject(new DOMException('unsupported media', 'NotSupportedError'));
+          await Promise.resolve();
+          const otherFailure = messages.length === 1 && messages[0].kind === 'error' && !messages[0].message.includes('自动播放');
+          messages.length = 0;
+          playPronounce(word);
+          const broken = currentAudio;
+          broken.handlers.error();
+          broken.reject(new DOMException('load failed', 'NotSupportedError'));
+          await Promise.resolve();
+          return {staleIgnored, abortIgnored, permissionHint, otherFailure,
+            singleLoadError:messages.length === 1 && messages[0].kind === 'error'};
+        } finally {
+          pauseStudyAudio();
+          window.Audio = NativeAudio;
+          notify = originalNotify;
+        }
+      });
+      assert.deepEqual(playbackFailures, {staleIgnored:true, abortIgnored:true, permissionHint:true, otherFailure:true, singleLoadError:true});
       await page.evaluate(()=>{document.getElementById('modeSelect').value='test-zh';changeMode();});
       assert.equal(await page.evaluate(()=>currentAudio===null && document.getElementById('pronounceIcon').style.display==='none'),true,'Chinese self-test stops previous audio and conceals the speaker');
       await page.evaluate(()=>{toggleReveal();toggleReveal();});
@@ -178,6 +226,46 @@ process.chdir(path.resolve(__dirname,'..'));
         buildAudioIndex([...files,...books]);
         return ['left','right'].every((root,index)=>findAudioFile({german:'lernen',pronounce:'words/einheit1/lernen.mp3',sourceRoot:'import/'+root})===files[index]);
       }),true,'same-name imported recordings stay within the matching source folder');
+      await page.evaluate(async () => { await loadFile(Object.keys(fileMap)[0]); switchView('card'); currentIndex=0; updateUI(); });
+      assert.equal(await page.locator('#btnPrevCard').isDisabled(),true);
+      await page.locator('#btnNextCard').click();
+      assert.equal(await page.evaluate(()=>currentIndex),1);
+      await page.locator('#btnPrevCard').click();
+      assert.equal(await page.evaluate(()=>currentIndex),0);
+      await page.evaluate(()=>{currentIndex=displayWords.length-1;updateUI();});
+      assert.equal(await page.locator('#btnNextCard').isDisabled(),true);
+      await page.evaluate(()=>{switchView('list');prevCard();});
+      assert.equal(await page.locator('#cardIndexInfo').innerText(),'64 / 65');
+      await page.evaluate(()=>{
+        window.feedbackCalls=[];
+        Feedback.setSender(async message=>{feedbackCalls.push(message);throw new Error('private service URL');});
+        document.getElementById('openFeedback').hidden = false; // Test the form with a mock native transport.
+      });
+      await page.locator('#openFeedback').click();
+      assert.equal(await page.evaluate(()=>feedbackCalls.length),0);
+      await page.locator('#feedbackMessage').fill('  test feedback <b>literal</b>  ');
+      await page.locator('#feedbackSubmit').click();
+      await page.waitForFunction(()=>document.getElementById('feedbackStatus').textContent.includes('提交失败'));
+      assert.equal(await page.locator('#feedbackMessage').inputValue(),'  test feedback <b>literal</b>  ');
+      assert.equal(await page.locator('#feedbackStatus').innerText().then(text=>text.includes('private')),false);
+      await page.evaluate(()=>Feedback.setSender(async message=>feedbackCalls.push(message)));
+      await page.locator('#feedbackSubmit').click();
+      await page.waitForFunction(()=>document.getElementById('feedbackStatus').textContent.includes('已提交'));
+      assert.equal(await page.locator('#feedbackMessage').inputValue(),'');
+      assert.deepEqual(await page.evaluate(()=>feedbackCalls),['test feedback <b>literal</b>','test feedback <b>literal</b>']);
+      await page.locator('#feedbackCancel').click();
+      await page.evaluate(()=>{window.testFonts=[...document.querySelectorAll('h1,h2,p,span,select,input,button,textarea')]
+        .filter(el=>!el.matches('.nav-btn,.star-mark,.pronounce-icon,.icon-button'))
+        .map(el=>[el,parseFloat(getComputedStyle(el).fontSize)]);});
+      for(const zoom of [1,1.5,2]) {
+        await page.setViewportSize({width:480,height:720});
+        await page.evaluate(zoom=>testFonts.forEach(([el,size])=>el.style.fontSize=size*zoom+'px'),zoom);
+        assert.equal(await page.locator('#btnNextCard').evaluate(el=>{const r=el.getBoundingClientRect();return Math.abs(r.width-r.height)<1 && r.bottom<=innerHeight;}),true);
+        await page.evaluate(()=>Feedback.open());
+        assert.equal(await page.locator('#feedbackDialog').evaluate(el=>el.scrollWidth<=el.clientWidth+1),true);
+        await page.locator('#feedbackCancel').click();
+      }
+      await page.evaluate(()=>testFonts.forEach(([el])=>el.style.fontSize=''));
       assert.deepEqual(errors,[]);
       console.log(`PASS: ${html}: 460 words/audio, checkbox mixing, unique IDs, source-aware stars/audio, reversible shuffle/search, normal card replay, live/persisted playback speed, self-test, list, keyboard and themes`);
       await page.screenshot({path:'artifacts/windows-dark.png'});

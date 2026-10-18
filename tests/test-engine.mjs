@@ -20,6 +20,7 @@ let timerId=0;const timers=new Map();
 const context=vm.createContext({console,TextDecoder,Uint8Array,DataView,Blob,Response,DecompressionStream,Map,Set,URL,Number,document,
   localStorage,location:{href:'https://appassets.androidplatform.net/assets/web/index.html'},
   setTimeout:fn=>{timers.set(++timerId,fn);return timerId;},clearTimeout:id=>timers.delete(id),btoa:s=>Buffer.from(s,'binary').toString('base64'),atob:s=>Buffer.from(s,'base64').toString('binary'),
+  Feedback:{setSender(){}},
   Android:{inflate:s=>inflateRawSync(Buffer.from(s,'base64')).toString('base64'),play(){},stopAudio(){},isSystemDark:()=>false,setDarkMode(){},setPlaybackRate(){}},
   AppTheme:{mode:'auto', getMode(){return this.mode;}, setMode(value){this.mode=value;}, setSystemDark(){}},
   window:{localStorage,Android:true}

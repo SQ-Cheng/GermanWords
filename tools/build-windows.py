@@ -1,6 +1,5 @@
 """Prepare the same local frontend for Tauri and browser regression tests."""
 import json
-import re
 import shutil
 import zipfile
 from pathlib import Path
@@ -15,7 +14,8 @@ output.mkdir(parents=True)
 client = root / 'apps/windows/frontend'
 config = json.loads((root / 'shared/app-config.json').read_text(encoding='utf-8'))
 html = (client / 'index.html').read_text(encoding='utf-8')
-html = re.sub(r'4\.\d+\.\d+-beta\.\d+', config['versionName'], html)
+html = html.replace('<title>德语单词</title>', '<title>德语单词 ' + config['versionName'] + '</title>')
+html = html.replace('<span id="appVersion"></span>', '<span id="appVersion"> · ' + config['versionName'] + '</span>')
 for source in client.iterdir():
     if source.suffix in {'.js', '.css'}:
         shutil.copy2(source, output)

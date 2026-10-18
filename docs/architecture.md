@@ -6,6 +6,7 @@
 | --- | --- |
 | 公共数据 | `shared/parser.js` 读取 XLSX；`vocabulary.js` 搜索、组合词表并附加来源；`audio.js` 建索引和匹配录音，不播放、不创建 URL |
 | 公共偏好 | `shared/marks.js` 保存原单元星标，存储不可用时降级到会话内存；`playback.js` 保存并校验语速，不访问页面 |
+| 公共反馈表单 | `shared/feedback.js` / `.css` 负责表单、校验和提交状态；发送函数由平台适配层注入 |
 | 公共主题 | `shared/theme.js` 保存主题并设置页面主题；`theme.css` 定义配色 |
 | Android 界面 | `apps/android/app/src/main/assets/web/`：HTML、CSS、`engine.js` 负责学习交互；`mobile.js` 负责 Android 偏好、进度、触摸和原生桥接适配 |
 | Android 宿主 | `MainActivity.java` 负责本地资源拦截、文件选择/导入、原生解压、MediaPlayer 与系统栏；平台 API 不进入共享层 |
@@ -23,4 +24,6 @@
 
 修改共享数据规则后运行 `pnpm --dir tests test`；修改任一界面还需跑浏览器回归或真机测试，入口见 `tests/README.md`。双端版本号在 `shared/app-config.json`，Gradle 和 Windows 打包脚本读取；versionCode 必须递增。发布 APK 使用 Release 构建并验证签名；Windows 正式分发 NSIS 安装包，内置 HTML、公共 JS/CSS 和词库。Beta 暂沿用历史开发证书以允许升级，正式发布前需制定独立签名迁移方案。
 
-更新共享版本与云盘来源，平台协议各自遵循现有安装边界。Android 使用 RSA 元数据与 APK 签名校验；新 Windows 使用 Tauri 官方签名更新格式与 NSIS 安装器。Windows 单独元数据入口避免破坏旧客户端，上传下载方式不变。下载能力不会扩展学习页面的网络或文件访问权限。`tools/publish-update.py` 负责维护发布，私钥和上传链接均不入库。
+双端读取同一个更新索引，版本化安装包置于各自版本子目录；Android 使用 RSA 载荷与 APK 签名校验，Windows 使用 Tauri 官方格式与安装器签名。`tools/publish-update.py` 校验双端产物、上传并读回核对后最后发布索引，维护端写链接不进入客户端。
+
+意见反馈表单不接触平台 API，`mobile.js` / `desktop.js` 注入发送函数，并负责打开表单前关闭词库、暂停音频；原生 `FeedbackSender` / `feedback.rs` 负责基本设备元数据及单文件上传。Android 更新与反馈复用 `ServiceHttp` 的来源、重定向和响应大小限制；Windows 复用原生 HTTPS 客户端限制。只在用户提交时发送，不读取学习存储。Android 反馈队列独立于导入/备份队列，均随 Activity 关闭；Windows 事件在脚本中绑定，避免违反 CSP。Windows 显示版本由构建工具从公共配置注入，源码页面不重复维护版本号。客户端只包含只读更新入口与仅上传反馈入口，二者不包含维护者写权限。详细格式、迁移边界与发布命令见 [更新维护](updates.md)。

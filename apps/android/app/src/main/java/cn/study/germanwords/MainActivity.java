@@ -42,7 +42,9 @@ public class MainActivity extends Activity {
     private float playbackRate = 1f;
     private boolean audioPrepared;
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
+    private final ExecutorService feedbackWorker = Executors.newSingleThreadExecutor();
     private volatile boolean destroyed;
+    private final java.util.concurrent.atomic.AtomicBoolean feedbackBusy = new java.util.concurrent.atomic.AtomicBoolean();
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -155,6 +157,16 @@ public class MainActivity extends Activity {
     private void js(String code) { runOnUiThread(() -> { if (!destroyed) web.evaluateJavascript(code, null); }); }
     private void notice(String text, String kind) { js("notify(" + JSONObject.quote(text) + "," + JSONObject.quote(kind) + ")"); }
     public class AndroidBridge {
+        @JavascriptInterface public void submitFeedback(String message,String userAgent) {
+            if(destroyed || !feedbackBusy.compareAndSet(false,true))return;
+            feedbackWorker.execute(() -> {
+                boolean success=false;
+                try { FeedbackSender.send(MainActivity.this,message,userAgent);success=true; }
+                catch(Exception ignored) { /* Report only a generic failure to the local form. */ }
+                finally { feedbackBusy.set(false); }
+                js("finishFeedback("+success+")");
+            });
+        }
         @JavascriptInterface public void checkForUpdates() { runOnUiThread(() -> updates.check(true)); }
         @JavascriptInterface public void setPlaybackRate(double rate) {
             float valid = rate==0.75 || rate==1 || rate==1.25 || rate==1.5 ? (float)rate : 1f;
@@ -367,5 +379,5 @@ public class MainActivity extends Activity {
     @Override public void onBackPressed() { web.evaluateJavascript("typeof handleAndroidBack==='function' && handleAndroidBack()", value -> { if(!"true".equals(value)) super.onBackPressed(); }); }
     @Override protected void onPause() { super.onPause(); web.evaluateJavascript("if(typeof pauseStudyAudio==='function')pauseStudyAudio()",null); releaseAudio(); web.onPause(); }
     @Override protected void onResume() { super.onResume(); if(web!=null) web.onResume(); if(updates!=null)updates.resumeInstall(); }
-    @Override protected void onDestroy() { destroyed=true; if(updates!=null)updates.close(); releaseAudio(); worker.shutdown(); web.removeJavascriptInterface("Android"); web.destroy(); super.onDestroy(); }
+    @Override protected void onDestroy() { destroyed=true; if(updates!=null)updates.close(); releaseAudio(); worker.shutdown(); feedbackWorker.shutdown(); web.removeJavascriptInterface("Android"); web.destroy(); super.onDestroy(); }
 }

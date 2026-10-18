@@ -117,3 +117,7 @@ tr.marked{border-color:var(--mark)}
 .file-item{display:flex;align-items:center;gap:10px}
 .file-item input{order:-1;width:22px;height:22px;flex-shrink:0;accent-color:var(--primary-color)}
 .mix-button{flex-shrink:0;background:var(--surface-soft);color:var(--primary-color);font-size:14px;margin-bottom:8px}
+
+.study-navigation{display:flex;align-items:center;gap:12px}
+.study-navigation .nav-btn{touch-action:manipulation;display:flex;align-items:center;justify-content:center;flex:0 0 44px;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border-radius:50%;background:var(--surface-soft);line-height:1}
+.study-navigation #studyProgress{flex:1;min-width:0;width:0}

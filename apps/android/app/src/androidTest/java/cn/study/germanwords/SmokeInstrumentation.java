@@ -50,6 +50,24 @@ public class SmokeInstrumentation extends Instrumentation {
             }
             if(!loaded) throw new IOException("Initial library did not load");
             UpdateChecks.run(activity);
+            // A slow feedback request must not hold up file import/backup work.
+            Field feedbackQueue=MainActivity.class.getDeclaredField("feedbackWorker");feedbackQueue.setAccessible(true);
+            Field fileQueue=MainActivity.class.getDeclaredField("worker");fileQueue.setAccessible(true);
+            CountDownLatch releaseFeedback=new CountDownLatch(1), filesReady=new CountDownLatch(1);
+            ((java.util.concurrent.ExecutorService)feedbackQueue.get(activity)).execute(() -> {
+                try { releaseFeedback.await(5,TimeUnit.SECONDS); } catch(InterruptedException e) { Thread.currentThread().interrupt(); }
+            });
+            try {
+                ((java.util.concurrent.ExecutorService)fileQueue.get(activity)).execute(filesReady::countDown);
+                if(!filesReady.await(2,TimeUnit.SECONDS))throw new IOException("Feedback blocks file imports");
+            } finally { releaseFeedback.countDown(); }
+
+            JSONObject report=FeedbackSender.report(new JSONObject().put("versionName","test").put("versionCode",1).put("channel","beta")," test ","WebView test");
+            if(!"test".equals(report.getString("message")) || report.length()!=5 || !report.getJSONObject("device").has("model") || report.getLong("submittedAtUnixMs")<=0)throw new IOException("Feedback metadata invalid");
+            for(String invalid:new String[]{" ",new String(new char[4001]).replace('\0','x')}) {
+                try { FeedbackSender.report(new JSONObject(),invalid,"test");throw new AssertionError("Invalid feedback accepted"); }
+                catch(IOException expected) { }
+            }
             oldTheme=evaluate("localStorage.getItem('german_theme_v1')");
             oldRate=evaluate("localStorage.getItem('german_playback_rate_v1')");
             AtomicReference<Boolean> focused=new AtomicReference<>(false);
@@ -79,20 +97,28 @@ public class SmokeInstrumentation extends Instrumentation {
             evaluate("currentIndex=0;updateUI()");
             swipeCard();
             if(!"true".equals(evaluate("currentIndex===1")))throw new IOException("Physical card swipe did not advance");
+            SystemClock.sleep(400);
+            tapControl("btnNextCard");
+            waitIndex(2);
+            tapControl("btnPrevCard");
+            waitIndex(1);
             dragProgress();
             if(!"true".equals(evaluate("currentIndex>=displayWords.length*.7 && currentIndex<=displayWords.length*.9 && preferences.books[currentFileName].word===displayWords[currentIndex].id")))throw new IOException("Physical progress drag did not navigate and persist");
             for(float scale:new float[]{1f,1.3f,1.5f,2f}) {
                 runOnMainSync(() -> activity.applyTextScale(scale));
                 SystemClock.sleep(300);
                 if(!"true".equals(evaluate("document.documentElement.scrollWidth<=innerWidth+1 && document.querySelector('.main-content').scrollWidth<=innerWidth+1")))throw new IOException("Horizontal overflow at text zoom "+scale);
-                if(!"true".equals(evaluate("document.body.scrollHeight<=innerHeight+1 && document.querySelector('.study-footer').getBoundingClientRect().bottom<=innerHeight+1 && document.getElementById('cardView').getBoundingClientRect().bottom<=innerHeight+1")))throw new IOException("Card or footer outside viewport at text zoom "+scale);
+                if(!"true".equals(evaluate("document.body.scrollHeight<=innerHeight+1 && document.querySelector('.study-footer').getBoundingClientRect().bottom<=innerHeight+1 && document.getElementById('cardView').getBoundingClientRect().bottom<=innerHeight+1")))throw new IOException("Card or footer outside viewport at text zoom "+scale+" "+evaluate("JSON.stringify({h:innerHeight,body:document.body.scrollHeight,footer:document.querySelector('.study-footer').getBoundingClientRect().toJSON(),card:document.getElementById('cardView').getBoundingClientRect().toJSON()})"));
                 if(!"true".equals(evaluate("(()=>{const card=document.querySelector('.card-body');return card.scrollHeight<=card.clientHeight+1})()")))throw new IOException("Built-in card requires scrolling at text zoom "+scale);
-                if(!"true".equals(evaluate("[document.querySelector('.star-mark'),document.getElementById('pronounceIcon')].every(el=>{const r=el.getBoundingClientRect();return Math.abs(r.width-r.height)<=1 && r.width>=44})")))throw new IOException("Card buttons must remain circular at text zoom "+scale);
+                if(!"true".equals(evaluate("[document.querySelector('.star-mark'),document.getElementById('pronounceIcon'),document.getElementById('btnPrevCard'),document.getElementById('btnNextCard')].every(el=>{const r=el.getBoundingClientRect();return Math.abs(r.width-r.height)<=1 && r.width>=44})")))throw new IOException("Card buttons must remain circular at text zoom "+scale);
                 evaluate("document.getElementById('libraryButton').scrollIntoView({block:'nearest'});openLibrary()");
                 if(scale==2f)screenshot("qa-library-200.png");
                 if(!"true".equals(evaluate("libraryOpen && document.getElementById('library').scrollWidth<=innerWidth+1")))throw new IOException("Drawer at text zoom "+scale);
                 evaluate("closeLibrary();document.getElementById('lessonTitle').scrollIntoView({block:'start'})");
                 SystemClock.sleep(100);
+                evaluate("Feedback.open()");
+                if(!"true".equals(evaluate("document.getElementById('feedbackDialog').open && document.getElementById('feedbackDialog').scrollWidth<=document.getElementById('feedbackDialog').clientWidth+1")))throw new IOException("Feedback layout at text zoom "+scale);
+                if(!"true".equals(evaluate("handleAndroidBack()")))throw new IOException("Feedback back did not close");
                 screenshot("qa-font-"+Math.round(scale*100)+".png");
                 evaluate("switchView('list');document.getElementById('modeSelect').value='test-zh';changeMode()");
                 SystemClock.sleep(200);
@@ -232,7 +258,27 @@ public class SmokeInstrumentation extends Instrumentation {
         runOnMainSync(() -> activity.web.getLocationOnScreen(location));
         float scale=activity.web.getWidth()/Float.parseFloat(evaluate("innerWidth"));
         float y=location[1]+Float.parseFloat(evaluate("(()=>{const r=document.getElementById('studyProgress').getBoundingClientRect();return r.top+r.height/2})()"))*scale;
-        drag(location[0]+activity.web.getWidth()*.2f,location[0]+activity.web.getWidth()*.8f,y);
+        float left=Float.parseFloat(evaluate("document.getElementById('studyProgress').getBoundingClientRect().left"));
+        float width=Float.parseFloat(evaluate("document.getElementById('studyProgress').getBoundingClientRect().width"));
+        drag(location[0]+(left+width*.2f)*scale,location[0]+(left+width*.8f)*scale,y);
+    }
+    private void waitIndex(int expected) throws Exception {
+        for(int i=0;i<30;i++) {
+            if(String.valueOf(expected).equals(evaluate("currentIndex")))return;
+            SystemClock.sleep(50);
+        }
+        screenshot("qa-failure.png");
+        throw new IOException("Button expected index "+expected+", state "+evaluate("JSON.stringify({index:currentIndex,count:displayWords.length,disabled:document.getElementById('btnNextCard').disabled,focus:document.hasFocus()})"));
+    }
+    private void tapControl(String id) throws Exception {
+        int[] location=new int[2];runOnMainSync(() -> activity.web.getLocationOnScreen(location));
+        float scale=activity.web.getWidth()/Float.parseFloat(evaluate("innerWidth"));
+        float x=Float.parseFloat(evaluate("(()=>{const r=document.getElementById('"+id+"').getBoundingClientRect();return r.left+r.width/2})()"))*scale+location[0];
+        float y=Float.parseFloat(evaluate("(()=>{const r=document.getElementById('"+id+"').getBoundingClientRect();return r.top+r.height/2})()"))*scale+location[1];
+        try(InputStream result=new android.os.ParcelFileDescriptor.AutoCloseInputStream(
+                getUiAutomation().executeShellCommand("input tap "+Math.round(x)+" "+Math.round(y)))) {
+            while(result.read()!=-1) { }
+        }
     }
     private void drag(float start,float end,float y) throws Exception {
         long down=SystemClock.uptimeMillis();
