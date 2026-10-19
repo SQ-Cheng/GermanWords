@@ -56,7 +56,7 @@ process.chdir(path.resolve(__dirname,'..'));
             await loadFile(name);
             for (currentIndex = 0; currentIndex < displayWords.length; currentIndex++) {
               renderCard();
-              const card = document.getElementById('cardView');
+              const card = document.querySelector('.card-body');
               const bounds = card.getBoundingClientRect(), style = getComputedStyle(card);
               const top = document.getElementById('germanArea').getBoundingClientRect().top - bounds.top - parseFloat(style.borderTopWidth) - parseFloat(style.paddingTop);
               const bottom = bounds.bottom - parseFloat(style.borderBottomWidth) - parseFloat(style.paddingBottom) - document.getElementById('clickHint').getBoundingClientRect().bottom;
@@ -69,6 +69,12 @@ process.chdir(path.resolve(__dirname,'..'));
           return failures;
         });
         assert.deepEqual(misplaced, [], `card content stays centered and its beginning remains reachable at ${size.width}×${size.height}`);
+        assert.equal(await page.evaluate(()=>{
+          const card=document.getElementById('cardView').getBoundingClientRect(),body=document.querySelector('.card-body').getBoundingClientRect();
+          const left=document.getElementById('btnPrevCard').getBoundingClientRect(),right=document.getElementById('btnNextCard').getBoundingClientRect();
+          return left.left>=card.left && left.right<=body.left && right.left>=body.right && right.right<=card.right
+            && Math.abs(left.top+left.height/2-(card.top+card.height/2))<1 && Math.abs(right.top-left.top)<1;
+        }),true,'both navigation buttons stay inside the card, centered at its sides without covering text');
       }
       await page.setViewportSize({width:480,height:720});
       const largeWordStyle = await page.addStyleTag({content:'.card-german { font-size:112px; }'});
@@ -82,6 +88,19 @@ process.chdir(path.resolve(__dirname,'..'));
       await page.setViewportSize({width:1280,height:720});
       await page.waitForFunction(size=>parseFloat(getComputedStyle(document.getElementById('cardGerman')).fontSize)>size+1,narrowWordSize);
       await largeWordStyle.evaluate(el=>el.remove());
+      assert.equal(await page.evaluate(()=>{
+        const body=document.querySelector('.card-body'),button=document.getElementById('btnNextCard');
+        document.getElementById('exampleArea').style.display='';
+        document.getElementById('cardExample').textContent='Long imported example. '.repeat(1000);
+        body.scrollTop=0;
+        const before=button.getBoundingClientRect().top;
+        const beginning=document.getElementById('germanArea').getBoundingClientRect().top>=body.getBoundingClientRect().top;
+        body.scrollTop=body.scrollHeight;
+        const result=beginning && body.scrollTop>0 && button.getBoundingClientRect().top===before
+          && document.getElementById('clickHint').getBoundingClientRect().bottom<=body.getBoundingClientRect().bottom;
+        renderCard();body.scrollTop=0;
+        return result;
+      }),true,'long card content scrolls from beginning to end while side buttons remain fixed');
       await page.setViewportSize({width:1280,height:720});
       await page.evaluate(async () => {
         await loadFile(Object.keys(fileMap)[0]);

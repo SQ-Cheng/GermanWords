@@ -685,7 +685,7 @@ function navigateTo(index) {
   isRevealed = false;
   updateUI();
   if (currentView === 'list') document.querySelectorAll('#wordTable tbody tr')[index].scrollIntoView({block:'nearest'});
-  else document.getElementById('cardView').scrollTop = 0;
+  else document.querySelector('.card-body').scrollTop = 0;
 }
 
 function previewProgress(value) {
@@ -695,7 +695,7 @@ function previewProgress(value) {
   currentIndex = Math.max(0, Math.min(displayWords.length - 1, index));
   isRevealed = false;
   if (currentView === 'card') {
-    document.getElementById('cardView').scrollTop = 0;
+    document.querySelector('.card-body').scrollTop = 0;
     renderCard(true);
   } else document.querySelectorAll('#wordTable tbody tr')[currentIndex].scrollIntoView({block:'nearest'});
   updateNav();
@@ -769,8 +769,8 @@ document.getElementById('btnShuffle').onclick = shuffleCurrentList;
 document.getElementById('btnCardView').onclick = () => switchView('card');
 document.getElementById('btnListView').onclick = () => switchView('list');
 document.getElementById('btnFilter').onclick = toggleFilter;
-document.getElementById('btnPrevCard').onclick = prevCard;
-document.getElementById('btnNextCard').onclick = nextCard;
+document.getElementById('btnPrevCard').onclick = event => { event.stopPropagation(); prevCard(); };
+document.getElementById('btnNextCard').onclick = event => { event.stopPropagation(); nextCard(); };
 
 document.getElementById('studyProgress').oninput = event => previewProgress(event.target.value);
 document.getElementById('studyProgress').onchange = event => navigateTo(Number(event.target.value));
