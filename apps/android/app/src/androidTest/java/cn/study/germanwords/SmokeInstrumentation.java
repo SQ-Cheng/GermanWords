@@ -106,11 +106,14 @@ public class SmokeInstrumentation extends Instrumentation {
             if(!"true".equals(evaluate("currentIndex>=displayWords.length*.7 && currentIndex<=displayWords.length*.9 && preferences.books[currentFileName].word===displayWords[currentIndex].id")))throw new IOException("Physical progress drag did not navigate and persist");
             for(float scale:new float[]{1f,1.3f,1.5f,2f}) {
                 runOnMainSync(() -> activity.applyTextScale(scale));
+                evaluate("currentIndex=displayWords.reduce((longest,word,index)=>word.german.length>displayWords[longest].german.length?index:longest,0);updateUI()");
                 SystemClock.sleep(300);
+                if(!"true".equals(evaluate("(()=>{const word=document.getElementById('cardGerman');return word.scrollWidth<=word.clientWidth+1 && getComputedStyle(word).whiteSpace==='nowrap'})()")))throw new IOException("Longest word must fit on one line at zoom "+scale+" "+evaluate("(()=>{const word=document.getElementById('cardGerman');return JSON.stringify({text:word.textContent,width:word.clientWidth,scroll:word.scrollWidth,font:getComputedStyle(word).fontSize,inline:word.style.fontSize,parent:word.parentElement.clientWidth})})()"));
                 if(!"true".equals(evaluate("document.documentElement.scrollWidth<=innerWidth+1 && document.querySelector('.main-content').scrollWidth<=innerWidth+1")))throw new IOException("Horizontal overflow at text zoom "+scale);
                 if(!"true".equals(evaluate("document.body.scrollHeight<=innerHeight+1 && document.querySelector('.study-footer').getBoundingClientRect().bottom<=innerHeight+1 && document.getElementById('cardView').getBoundingClientRect().bottom<=innerHeight+1")))throw new IOException("Card or footer outside viewport at text zoom "+scale+" "+evaluate("JSON.stringify({h:innerHeight,body:document.body.scrollHeight,footer:document.querySelector('.study-footer').getBoundingClientRect().toJSON(),card:document.getElementById('cardView').getBoundingClientRect().toJSON()})"));
                 if(!"true".equals(evaluate("(()=>{const card=document.querySelector('.card-body');return card.scrollHeight<=card.clientHeight+1})()")))throw new IOException("Built-in card requires scrolling at text zoom "+scale);
                 if(!"true".equals(evaluate("[document.querySelector('.star-mark'),document.getElementById('pronounceIcon'),document.getElementById('btnPrevCard'),document.getElementById('btnNextCard')].every(el=>{const r=el.getBoundingClientRect();return Math.abs(r.width-r.height)<=1 && r.width>=44})")))throw new IOException("Card buttons must remain circular at text zoom "+scale);
+                if(!"true".equals(evaluate("(()=>{const card=document.getElementById('cardView').getBoundingClientRect(),body=document.querySelector('.card-body').getBoundingClientRect(),left=document.getElementById('btnPrevCard').getBoundingClientRect(),right=document.getElementById('btnNextCard').getBoundingClientRect();return left.left>=card.left && left.right<=body.left && right.left>=body.right && right.right<=card.right && left.top>=card.top && left.bottom<=card.bottom && right.top>=card.top && right.bottom<=card.bottom})()")))throw new IOException("Side buttons must stay inside the card without overlapping text at zoom "+scale);
                 evaluate("document.getElementById('libraryButton').scrollIntoView({block:'nearest'});openLibrary()");
                 if(scale==2f)screenshot("qa-library-200.png");
                 if(!"true".equals(evaluate("libraryOpen && document.getElementById('library').scrollWidth<=innerWidth+1")))throw new IOException("Drawer at text zoom "+scale);
@@ -134,6 +137,7 @@ public class SmokeInstrumentation extends Instrumentation {
                 runOnMainSync(() -> activity.applyTextScale(scale));SystemClock.sleep(300);
                 SystemClock.sleep(100);
                 if(!"true".equals(evaluate("innerWidth<=321 && document.querySelector('.main-content').scrollWidth<=innerWidth+1 && document.querySelector('.study-footer').getBoundingClientRect().bottom<=innerHeight+1")))throw new IOException("320dp card layout at text zoom "+scale);
+                if(!"true".equals(evaluate("(()=>{const word=document.getElementById('cardGerman');return word.scrollWidth<=word.clientWidth+1 && getComputedStyle(word).whiteSpace==='nowrap'})()")))throw new IOException("320dp longest word must fit on one line at zoom "+scale);
                 evaluate("switchView('list');document.getElementById('modeSelect').value='test-de';changeMode()");
                 if(!"true".equals(evaluate("document.getElementById('wordTable').getBoundingClientRect().right<=innerWidth+1")))throw new IOException("320dp list layout at text zoom "+scale);
                 evaluate("switchView('card');document.getElementById('modeSelect').value='normal';changeMode()");
@@ -261,7 +265,11 @@ public class SmokeInstrumentation extends Instrumentation {
         float y=location[1]+Float.parseFloat(evaluate("(()=>{const r=document.getElementById('studyProgress').getBoundingClientRect();return r.top+r.height/2})()"))*scale;
         float left=Float.parseFloat(evaluate("document.getElementById('studyProgress').getBoundingClientRect().left"));
         float width=Float.parseFloat(evaluate("document.getElementById('studyProgress').getBoundingClientRect().width"));
-        drag(location[0]+(left+width*.2f)*scale,location[0]+(left+width*.8f)*scale,y);
+        evaluate("window.progressOriginalPlay=playPronounce;window.progressOldAutoPlay=autoPlayEnabled;autoPlayEnabled=true;window.progressPlays=0;playPronounce=()=>progressPlays++");
+        try {
+            drag(location[0]+(left+width*.2f)*scale,location[0]+(left+width*.8f)*scale,y,true);
+            if(!"true".equals(evaluate("progressPlays===1")))throw new IOException("Release must play only the final preview word");
+        } finally { evaluate("playPronounce=window.progressOriginalPlay;autoPlayEnabled=window.progressOldAutoPlay"); }
     }
     private void waitIndex(int expected) throws Exception {
         for(int i=0;i<30;i++) {
@@ -282,6 +290,9 @@ public class SmokeInstrumentation extends Instrumentation {
         }
     }
     private void drag(float start,float end,float y) throws Exception {
+        drag(start,end,y,false);
+    }
+    private void drag(float start,float end,float y,boolean progress) throws Exception {
         long down=SystemClock.uptimeMillis();
         for(int i=0;i<=12;i++) {
             int action=i==0?android.view.MotionEvent.ACTION_DOWN:i==12?android.view.MotionEvent.ACTION_UP:android.view.MotionEvent.ACTION_MOVE;
@@ -290,6 +301,10 @@ public class SmokeInstrumentation extends Instrumentation {
             getUiAutomation().injectInputEvent(event,true);
             event.recycle();
             SystemClock.sleep(20);
+            if(progress && i==10) {
+                SystemClock.sleep(180);
+                if(!"true".equals(evaluate("progressPlays===0 && autoPlayTimer===null && currentAudio===null && currentIndex>displayWords.length*.6 && document.getElementById('cardChinese').innerText===displayWords[currentIndex].chinese")))throw new IOException("Held slider must preview the target card without audio");
+            }
         }
         SystemClock.sleep(150);
     }

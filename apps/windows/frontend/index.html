@@ -8,6 +8,7 @@
   <script src="../../../shared/playback.js"></script>
   <script src="../../../shared/vocabulary.js"></script>
   <link rel="stylesheet" href="windows.css" />
+  <link rel="stylesheet" href="../../../shared/progress.css" />
   <link rel="stylesheet" href="../../../shared/theme.css" />
   <link rel="stylesheet" href="../../../shared/feedback.css" />
 </head>
@@ -54,7 +55,7 @@
       <div id="listViewContainer" class="list-view-container" style="display:none"><div class="table-scroll"><table id="wordTable"><thead><tr><th>德语</th><th>中文</th><th>词性</th><th>复数</th><th>例句</th><th>操作</th></tr></thead><tbody></tbody></table></div></div>
       <div id="emptyState" class="empty-state"><h2>选择词表，开始学习</h2><p>桌面版内置词库，也可导入自己的词表与录音。</p></div>
     </div>
-    <footer class="study-navigation"><button id="btnPrevCard" class="nav-btn" title="上一个（← 或 2）" aria-label="上一个"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button><span class="counter-info" id="cardIndexInfo" aria-live="polite"></span><button id="btnNextCard" class="nav-btn" title="下一个（→ 或 4）" aria-label="下一个"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></footer>
+    <footer class="study-navigation"><button id="btnPrevCard" class="nav-btn" title="上一个（← 或 2）" aria-label="上一个"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button><div class="study-progress"><span class="counter-info" id="cardIndexInfo" aria-live="polite"></span><input id="studyProgress" type="range" min="0" max="0" step="1" value="0" disabled aria-label="学习进度" /></div><button id="btnNextCard" class="nav-btn" title="下一个（→ 或 4）" aria-label="下一个"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></footer>
   </main>
   <div id="notice" class="notice" role="status"></div>
   <dialog id="updateDialog"><h2>发现新版本</h2><p id="updateNotes"></p><p>下载后将关闭应用并安装，星标和设置会保留。</p><div class="dialog-actions"><button id="deferUpdate">稍后</button><button id="installUpdate" class="primary-button">下载并更新</button></div></dialog>
@@ -64,5 +65,6 @@
   <script src="app.js"></script>
   <script src="../../../shared/feedback.js"></script>
   <script src="desktop.js"></script>
+  <script src="../../../shared/word-fit.js"></script>
 </body>
 </html>

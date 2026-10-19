@@ -414,7 +414,7 @@
         }
       }
 
-      function renderCard() {
+      function renderCard(preview = false) {
         const word = displayWords[currentIndex];
         if (!word) return;
         const cardEl = document.getElementById("cardView");
@@ -534,7 +534,7 @@
           currentMode +
           "#" +
           (germanVisible ? "visible" : "hidden");
-        if (autoKey !== lastAutoKey) {
+        if (!preview && autoKey !== lastAutoKey) {
           pauseStudyAudio();
           lastAutoKey = autoKey;
           if (autoPlayEnabled && germanVisible && hasAudio(word) && audioUnlocked) {

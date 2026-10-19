@@ -70,6 +70,18 @@ process.chdir(path.resolve(__dirname,'..'));
         });
         assert.deepEqual(misplaced, [], `card content stays centered and its beginning remains reachable at ${size.width}×${size.height}`);
       }
+      await page.setViewportSize({width:480,height:720});
+      const largeWordStyle = await page.addStyleTag({content:'.card-german { font-size:112px; }'});
+      await page.evaluate(async () => {
+        await loadFile(Object.keys(fileMap)[1]);
+        currentIndex = displayWords.reduce((longest,word,index) => word.german.length > displayWords[longest].german.length ? index : longest, 0);
+        renderCard();
+      });
+      await page.waitForFunction(()=>{const word=document.getElementById('cardGerman');return word.scrollWidth<=word.clientWidth+1 && getComputedStyle(word).whiteSpace==='nowrap';});
+      const narrowWordSize = await page.locator('#cardGerman').evaluate(el=>parseFloat(getComputedStyle(el).fontSize));
+      await page.setViewportSize({width:1280,height:720});
+      await page.waitForFunction(size=>parseFloat(getComputedStyle(document.getElementById('cardGerman')).fontSize)>size+1,narrowWordSize);
+      await largeWordStyle.evaluate(el=>el.remove());
       await page.setViewportSize({width:1280,height:720});
       await page.evaluate(async () => {
         await loadFile(Object.keys(fileMap)[0]);
@@ -255,6 +267,21 @@ process.chdir(path.resolve(__dirname,'..'));
       assert.equal(await page.evaluate(()=>currentIndex),1);
       await page.locator('#btnPrevCard').click();
       assert.equal(await page.evaluate(()=>currentIndex),0);
+      await page.evaluate(()=>{pauseStudyAudio();window.sliderPlays=0;window.sliderOriginalPlay=playPronounce;playPronounce=()=>sliderPlays++;});
+      const slider = await page.locator('#studyProgress').boundingBox();
+      await page.mouse.move(slider.x + slider.width * .25, slider.y + slider.height / 2);
+      await page.mouse.down();
+      for (const ratio of [.4,.6,.8]) {
+        await page.mouse.move(slider.x + slider.width * ratio, slider.y + slider.height / 2, {steps:3});
+        await page.waitForTimeout(180);
+        assert.equal(await page.evaluate(()=>sliderPlays===0 && autoPlayTimer===null && currentAudio===null),true,'holding the slider previews silently');
+        assert.equal(await page.locator('#cardChinese').innerText(),await page.evaluate(()=>displayWords[currentIndex].chinese),'the target card is visible before release');
+      }
+      assert.equal(await page.evaluate(()=>currentIndex>40 && currentIndex<60),true);
+      await page.mouse.up();
+      await page.waitForTimeout(180);
+      assert.equal(await page.evaluate(()=>sliderPlays),1,'release plays only the final word');
+      await page.evaluate(()=>{playPronounce=window.sliderOriginalPlay;});
       await page.evaluate(()=>{currentIndex=displayWords.length-1;updateUI();});
       assert.equal(await page.locator('#btnNextCard').isDisabled(),true);
       await page.evaluate(()=>{switchView('list');prevCard();});

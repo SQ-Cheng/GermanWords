@@ -385,6 +385,12 @@ function updateNav() {
   const next = document.getElementById("btnNextCard");
   if (!prev || !next) return;
   document.getElementById("cardIndexInfo").innerText = displayWords.length ? `${currentIndex + 1} / ${displayWords.length}` : "0 / 0";
+  const progress = document.getElementById('studyProgress');
+  progress.max = Math.max(0, displayWords.length - 1);
+  progress.value = currentIndex;
+  progress.disabled = displayWords.length <= 1;
+  progress.style.setProperty('--progress', (displayWords.length > 1 ? currentIndex / (displayWords.length - 1) * 100 : 0) + '%');
+  progress.setAttribute('aria-valuetext', displayWords.length ? `${currentIndex + 1} / ${displayWords.length}` : '0 / 0');
   prev.disabled = currentIndex <= 0;
   next.disabled =
     displayWords.length === 0 || currentIndex >= displayWords.length - 1;
@@ -451,7 +457,7 @@ function renderEmptyView() {
   }
 }
 
-function renderCard() {
+function renderCard(preview = false) {
   const word = displayWords[currentIndex];
   const cardEl = document.getElementById("cardView");
 
@@ -567,7 +573,7 @@ function renderCard() {
     currentMode +
     "#" +
     (germanVisible ? "visible" : "hidden");
-  if (autoKey !== lastAutoKey) {
+  if (!preview && autoKey !== lastAutoKey) {
     pauseStudyAudio();
     lastAutoKey = autoKey;
     if (germanVisible && hasAudio(word) && audioUnlocked) {
@@ -671,11 +677,28 @@ function prevCard() {
 }
 
 function navigateTo(index) {
+  if (!Number.isInteger(index) || !displayWords.length) return;
+  pauseStudyAudio();
+  lastAutoKey = null;
+  index = Math.max(0, Math.min(displayWords.length - 1, index));
   currentIndex = index;
   isRevealed = false;
   updateUI();
   if (currentView === 'list') document.querySelectorAll('#wordTable tbody tr')[index].scrollIntoView({block:'nearest'});
   else document.getElementById('cardView').scrollTop = 0;
+}
+
+function previewProgress(value) {
+  const index = Number(value);
+  if (!Number.isInteger(index) || !displayWords.length) return;
+  pauseStudyAudio();
+  currentIndex = Math.max(0, Math.min(displayWords.length - 1, index));
+  isRevealed = false;
+  if (currentView === 'card') {
+    document.getElementById('cardView').scrollTop = 0;
+    renderCard(true);
+  } else document.querySelectorAll('#wordTable tbody tr')[currentIndex].scrollIntoView({block:'nearest'});
+  updateNav();
 }
 
 function toggleCurrentMark() {
@@ -748,5 +771,8 @@ document.getElementById('btnListView').onclick = () => switchView('list');
 document.getElementById('btnFilter').onclick = toggleFilter;
 document.getElementById('btnPrevCard').onclick = prevCard;
 document.getElementById('btnNextCard').onclick = nextCard;
+
+document.getElementById('studyProgress').oninput = event => previewProgress(event.target.value);
+document.getElementById('studyProgress').onchange = event => navigateTo(Number(event.target.value));
 document.getElementById('cardView').onclick = toggleReveal;
 document.querySelector('.star-mark').onclick = event => { event.stopPropagation(); toggleCurrentMark(); };

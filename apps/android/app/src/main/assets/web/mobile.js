@@ -139,8 +139,16 @@ function paintProgress(index) {
   progress.setAttribute('aria-valuetext', position + ' / ' + count);
 }
 function previewProgress(value) {
+  const index = Number(value);
+  if (!Number.isInteger(index) || !displayWords.length) return;
   pauseStudyAudio();
-  paintProgress(Number(value));
+  currentIndex = Math.max(0, Math.min(displayWords.length - 1, index));
+  isRevealed = false;
+  if (currentView === 'card') {
+    document.querySelector('.card-body').scrollTop = 0;
+    renderCard(true);
+  } else document.querySelectorAll('#wordTable tbody tr')[currentIndex].scrollIntoView({block:'nearest'});
+  paintStudy();
 }
 function seekProgress(value) {
   const index = Number(value);
