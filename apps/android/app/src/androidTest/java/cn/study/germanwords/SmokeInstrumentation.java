@@ -117,6 +117,7 @@ public class SmokeInstrumentation extends Instrumentation {
                 evaluate("closeLibrary();document.getElementById('lessonTitle').scrollIntoView({block:'start'})");
                 SystemClock.sleep(100);
                 evaluate("Feedback.open()");
+                if(!"true".equals(evaluate("document.getElementById('feedbackDescription').textContent==='请勿填写密码等敏感信息。'")))throw new IOException("Android feedback description must stay concise");
                 if(!"true".equals(evaluate("document.getElementById('feedbackDialog').open && document.getElementById('feedbackDialog').scrollWidth<=document.getElementById('feedbackDialog').clientWidth+1")))throw new IOException("Feedback layout at text zoom "+scale);
                 if(!"true".equals(evaluate("handleAndroidBack()")))throw new IOException("Feedback back did not close");
                 screenshot("qa-font-"+Math.round(scale*100)+".png");
