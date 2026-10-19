@@ -2,13 +2,13 @@
 
 本仓库的 Android Studio 项目，来自「德语单词记忆助手 4.0」。Windows 离线版位于 `../windows/`。
 
-[下载安装包](https://github.com/SQ-Cheng/GermanWords/releases/tag/v4.2.1-beta.1) · [PDF 使用说明](../../output/pdf/GermanWordsAndroid-User-Guide.pdf) · [图片使用说明](../../output/pdf/GermanWordsAndroid-User-Guide.png) · [问题与建议](https://github.com/SQ-Cheng/GermanWords/issues)
+[下载安装包](https://github.com/SQ-Cheng/GermanWords/releases/tag/v4.2.1-beta.2) · [PDF 使用说明](../../output/pdf/GermanWordsAndroid-User-Guide.pdf) · [图片使用说明](../../output/pdf/GermanWordsAndroid-User-Guide.png) · [问题与建议](https://github.com/SQ-Cheng/GermanWords/issues)
 
 ## 使用
 
 应用名称：**德语单词**，公开版本与下载以发布页为准，源码版本统一维护于 `shared/app-config.json`。首次打开直接进入 E1；课程标题右侧的菜单可选择 E1–E7 或「虚词大盘点」。内置 8 份 Excel、460 个词条及全部对应录音，安装后无需联网。
 
-卡片通过左右滑动或外接键盘 ← / → 翻页；底部进度条可以拖动，拖动时预览位置，松手后跳转并保存进度。乱序、星标筛选和列表模式下均按当前展示顺序定位；空列表或仅一个词时禁用滑块。主页面保持一屏，超长词条或例句只在卡片内部滚动。学习模式名称与原版一致，星标、发音和列表操作中的圆形按钮在大字号下保持等宽等高。
+卡片通过两侧按钮、左右滑动或外接键盘 ← / → 翻页；底部进度条可以拖动，拖动时静音预览目标词条，松手后按发音设置播放并保存进度。乱序、星标筛选和列表模式下均按当前展示顺序定位；空列表或仅一个词时禁用滑块。主页面保持一屏，超长例句只在卡片内部滚动；德语词形按可用宽度调整字号，保持单行，冠词可单独一行。学习模式名称与原版一致，星标、发音、翻页和列表操作中的圆形按钮在大字号下保持等宽等高。
 
 词库侧栏中的「主题」默认跟随系统，可选择昼间或夜间；设置自动保存在本机。Android 状态栏、导航栏同时适配，切回「跟随系统」后会响应系统主题变化。
 

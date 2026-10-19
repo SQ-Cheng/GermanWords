@@ -9,14 +9,14 @@
 ```text
 Release/
   update-beta.json
-  4.2.1-beta.1/
-    GermanWords-Android-4.2.1-beta.1.apk
-    GermanWords-Windows-4.2.1-beta.1-x86_64-Setup.exe
-    GermanWords-Windows-4.2.1-beta.1-x86_64-Setup.exe.sig
+  4.2.1-beta.2/
+    GermanWords-Android-4.2.1-beta.2.apk
+    GermanWords-Windows-4.2.1-beta.2-x86_64-Setup.exe
+    GermanWords-Windows-4.2.1-beta.2-x86_64-Setup.exe.sig
     SHA256SUMS.txt
 ```
 
-当前发布版本为 `4.2.1-beta.1`（Android versionCode 11）。`update-beta.json` 同时包含 Tauri 官方需要的 `version` / `notes` / `platforms` 和 Android 的 RSA `payload` / `signature`。Android 签名载荷内的安装包路径必须严格对应版本子目录和文件名；Windows 平台项使用只读分享下该子目录的下载 URL，并携带官方安装包签名。无需自建服务器，也不统一两种安装协议。
+当前发布版本为 `4.2.1-beta.2`（Android versionCode 12）。`update-beta.json` 同时包含 Tauri 官方需要的 `version` / `notes` / `platforms` 和 Android 的 RSA `payload` / `signature`。Android 签名载荷内的安装包路径必须严格对应版本子目录和文件名；Windows 平台项使用只读分享下该子目录的下载 URL，并携带官方安装包签名。无需自建服务器，也不统一两种安装协议。
 
 版本、通道、来源与公钥唯一维护于 `shared/app-config.json`。更换来源只能影响新构建；已安装旧版仍读取旧地址，需要手动安装新包，或在原入口另行安排迁移。本工具不修改原入口，也不继续维护 HTML 原型的更新包；旧版迁移导出工具仍由构建脚本生成。
 
