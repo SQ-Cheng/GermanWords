@@ -22,7 +22,7 @@ GermanWords 是面向 Android 和 Windows 的离线德语词汇学习工具，�
 
 ## 最新版本与安装
 
-当前最新预发布版为 [**4.2.1-beta.2**](https://github.com/SQ-Cheng/GermanWords/releases/tag/v4.2.1-beta.2)，提供 Android APK、Windows x64 桌面安装包、旧版迁移包及 SHA-256 校验文件。本版统一卡片侧边翻页与进度条静音预览，改进大字号下的词形显示，补齐 149 条例句，并精简反馈说明、修复桌面卡片内容下沉。正式版与历史安装包见 GitHub Releases；预发布版以对应发布页说明为准。
+当前最新预发布版为 [**4.2.1-beta.2**](https://github.com/SQ-Cheng/GermanWords/releases/tag/v4.2.1-beta.2)，提供 Android APK、Windows x64 桌面安装包、旧版迁移包及 SHA-256 校验文件。本版统一卡片侧边翻页与进度条静音预览，改进大字号下的词形显示，补齐 149 条例句，并精简反馈说明、修复桌面卡片内容下沉及操作后快捷键失效。正式版与历史安装包见 GitHub Releases；预发布版以对应发布页说明为准。
 
 **Android：**下载 APK 后按系统提示安装。覆盖升级须使用相同应用签名。
 

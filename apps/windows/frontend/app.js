@@ -750,9 +750,15 @@ document.addEventListener("keydown", function (e) {
   }
 });
 
+function focusStudy() {
+  if (!document.querySelector('dialog[open]') && !document.body.classList.contains('library-open'))
+    document.querySelector('.main-content').focus({preventScroll:true});
+}
+
 function closeLibrary() {
   document.body.classList.remove('library-open');
   document.getElementById('openLibrary').setAttribute('aria-expanded', 'false');
+  focusStudy();
 }
 document.getElementById('openLibrary').onclick = () => {
   document.body.classList.add('library-open');
@@ -776,3 +782,18 @@ document.getElementById('studyProgress').oninput = event => previewProgress(even
 document.getElementById('studyProgress').onchange = event => navigateTo(Number(event.target.value));
 document.getElementById('cardView').onclick = toggleReveal;
 document.querySelector('.star-mark').onclick = event => { event.stopPropagation(); toggleCurrentMark(); };
+
+// Pointer actions return to study; keyboard-operated controls keep their focus.
+let pointerControl = null;
+document.addEventListener('pointerdown', event => { pointerControl = event.target.closest('select, input[type="range"]'); }, true);
+document.addEventListener('keydown', () => { pointerControl = null; }, true);
+document.addEventListener('click', event => {
+  if (event.detail > 0 && event.target.closest('button, input[type="checkbox"]') && !event.target.closest('dialog')) focusStudy();
+}, true);
+document.addEventListener('change', event => {
+  if (event.target === pointerControl || event.target.type === 'file') { pointerControl = null; focusStudy(); }
+});
+document.addEventListener('close', event => { if (event.target.tagName === 'DIALOG') focusStudy(); }, true);
+document.getElementById('wordSearch').onkeydown = event => {
+  if (event.key === 'Enter') { event.preventDefault(); focusStudy(); }
+};
