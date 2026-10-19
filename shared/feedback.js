@@ -6,7 +6,7 @@ const Feedback = (() => {
   dialog.innerHTML = '<form id="feedbackForm"><h2 id="feedbackTitle" tabindex="-1" autofocus>意见反馈</h2>' +
     '<label for="feedbackMessage">请描述遇到的问题或建议</label>' +
     '<textarea id="feedbackMessage" rows="6" maxlength="4000" required></textarea>' +
-    '<p id="feedbackDescription">提交时会附带时间、应用版本及基本设备信息，不包含词库、学习记录或文件。请勿填写密码等敏感信息。</p>' +
+    '<p id="feedbackDescription">请勿填写密码等敏感信息。</p>' +
     '<p id="feedbackStatus" role="status"></p><div class="feedback-actions">' +
     '<button type="button" id="feedbackCancel">关闭</button><button id="feedbackSubmit" type="submit">提交</button></div></form>';
   document.body.appendChild(dialog);

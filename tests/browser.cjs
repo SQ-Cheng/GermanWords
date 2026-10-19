@@ -265,7 +265,7 @@ process.chdir(path.resolve(__dirname,'..'));
         document.getElementById('openFeedback').hidden = false; // Test the form with a mock native transport.
       });
       await page.locator('#openFeedback').click();
-      assert.equal(await page.locator('#feedbackDescription').innerText(), '提交时会附带时间、应用版本及基本设备信息，不包含词库、学习记录或文件。请勿填写密码等敏感信息。', 'Windows feedback description remains unchanged');
+      assert.equal(await page.locator('#feedbackDescription').innerText(), '请勿填写密码等敏感信息。', 'feedback description stays concise');
       assert.equal(await page.evaluate(()=>feedbackCalls.length),0);
       await page.locator('#feedbackMessage').fill('  test feedback <b>literal</b>  ');
       await page.locator('#feedbackSubmit').click();

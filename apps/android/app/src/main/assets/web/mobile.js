@@ -1,5 +1,4 @@
 'use strict';
-document.getElementById('feedbackDescription').textContent = '请勿填写密码等敏感信息。';
 function openFeedback() {
   closeLibrary();
   pauseStudyAudio();
