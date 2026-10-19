@@ -48,6 +48,29 @@ process.chdir(path.resolve(__dirname,'..'));
         return {words,audio};
       });
       assert.deepEqual(totals, {words:460,audio:460});
+      for (const size of [{width:1280,height:900},{width:960,height:640},{width:480,height:720}]) {
+        await page.setViewportSize(size);
+        const misplaced = await page.evaluate(async () => {
+          const failures = [];
+          for (const name of Object.keys(fileMap)) {
+            await loadFile(name);
+            for (currentIndex = 0; currentIndex < displayWords.length; currentIndex++) {
+              renderCard();
+              const card = document.getElementById('cardView');
+              const bounds = card.getBoundingClientRect(), style = getComputedStyle(card);
+              const top = document.getElementById('germanArea').getBoundingClientRect().top - bounds.top - parseFloat(style.borderTopWidth) - parseFloat(style.paddingTop);
+              const bottom = bounds.bottom - parseFloat(style.borderBottomWidth) - parseFloat(style.paddingBottom) - document.getElementById('clickHint').getBoundingClientRect().bottom;
+              if (card.scrollHeight <= card.clientHeight + 1 && Math.abs(top - bottom) > 2)
+                failures.push(displayWords[currentIndex].german);
+              if (top < -1) failures.push('clipped: ' + displayWords[currentIndex].german);
+            }
+          }
+          pauseStudyAudio();
+          return failures;
+        });
+        assert.deepEqual(misplaced, [], `card content stays centered and its beginning remains reachable at ${size.width}×${size.height}`);
+      }
+      await page.setViewportSize({width:1280,height:720});
       await page.evaluate(async () => {
         await loadFile(Object.keys(fileMap)[0]);
         document.getElementById('modeSelect').value = 'test-zh';

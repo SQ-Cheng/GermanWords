@@ -55,7 +55,7 @@ h1 { font-size: 24px; overflow-wrap: anywhere; }
 .star-mark { position: absolute; top: 18px; right: 18px; color: var(--muted); font-size: 26px; }
 .card.marked .star-mark { color: var(--mark); background: var(--mark-bg); }
 .pronounce-icon { margin-top: 18px; color: var(--primary-color); font-size: 23px; }
-.hint-text { color: var(--muted); font-size: 12px; margin-top: 12px; }
+.hint-text { color: var(--muted); font-size: 12px; margin-top: 12px; margin-bottom: auto; flex-shrink: 0; }
 .counter-info { color: var(--muted); margin-top: auto; padding-top: 18px; font-size: 13px; }
 .hidden-content { visibility: hidden; }
 .bg-der { background: var(--color-der); }
