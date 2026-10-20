@@ -11,18 +11,20 @@ if output.resolve() != root / 'output/windows/web':
 if output.exists():
     shutil.rmtree(output)
 output.mkdir(parents=True)
-client = root / 'apps/windows/frontend'
+client = root / 'apps/web'
 config = json.loads((root / 'shared/app-config.json').read_text(encoding='utf-8'))
 html = (client / 'index.html').read_text(encoding='utf-8')
 html = html.replace('<title>德语单词</title>', '<title>德语单词 ' + config['versionName'] + '</title>')
 html = html.replace('<span id="appVersion"></span>', '<span id="appVersion"> · ' + config['versionName'] + '</span>')
+html = html.replace('../windows/frontend/desktop.js', 'desktop.js')
 for source in client.iterdir():
     if source.suffix in {'.js', '.css'}:
         shutil.copy2(source, output)
+shutil.copy2(root / 'apps/windows/frontend/desktop.js', output)
 for source in sorted((root / 'shared').iterdir()):
     if source.suffix not in {'.js', '.css'}:
         continue
-    html = html.replace('../../../shared/' + source.name, source.name)
+    html = html.replace('../../shared/' + source.name, source.name)
     shutil.copy2(source, output)
 (output / 'index.html').write_text(html, encoding='utf-8', newline='\n')
 shutil.copytree(root / 'shared/words', output / 'words')

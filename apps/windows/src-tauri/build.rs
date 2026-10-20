@@ -1,6 +1,7 @@
 fn main() {
     println!("cargo:rerun-if-changed=../../../shared/app-config.json");
     println!("cargo:rerun-if-changed=../frontend");
+    println!("cargo:rerun-if-changed=../../web");
     println!("cargo:rerun-if-changed=../../../shared");
     println!("cargo:rerun-if-changed=../../../tools/build-windows.py");
     let status = std::process::Command::new("python")

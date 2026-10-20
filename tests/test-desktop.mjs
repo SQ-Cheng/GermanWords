@@ -24,6 +24,7 @@ function fixture(native = false) {
     loadFile:async () => {}, refreshDisplayList(){}, changePlaybackRate(){},
     AppTheme:{getMode:() => 'dark', setMode(){}}, Playback:{getRate:() => 1.25}});
   vm.runInContext(source('shared/marks.js') + '\nconst store = MarkStore.create(() => {});', context);
+  vm.runInContext(source('apps/web/backup.js'), context);
   vm.runInContext(source('apps/windows/frontend/desktop.js'), context);
   return {context, imports, notices, get, saved, block:value => blocked=value, backup:() => backup,
     resolve:() => resolveIndex({ok:true,json:async () => [{name:'built-in.xlsx',path:'words/built-in.xlsx'}]}),
@@ -32,17 +33,17 @@ function fixture(native = false) {
 
 const f = fixture();
 f.block(true);
-vm.runInContext("store.setMark('E1','new',true);exportWindowsBackup()", f.context);
+vm.runInContext("store.setMark('E1','new',true);exportStudyBackup()", f.context);
 assert.deepEqual(f.backup().marks, {E1:['new']});
 assert.equal(f.backup().theme, 'dark');
 assert.equal(f.backup().rate, 1.25);
 f.block(false);
 const backup = JSON.stringify({format:'GermanWords-Windows',version:1,marks:{E1:['restored']},theme:'auto',rate:1});
 f.context.backup = backup;
-vm.runInContext('restoreWindowsBackup(backup)', f.context);
+vm.runInContext('restoreStudyBackup(backup)', f.context);
 assert.equal(vm.runInContext("store.marks('E1')[0]",f.context),'restored');
 assert.equal(JSON.parse(f.saved.get('german_app_memory')).E1[0], 'restored');
-assert.throws(() => vm.runInContext('restoreWindowsBackup(backup.replace("auto","invalid"))', f.context));
+assert.throws(() => vm.runInContext('restoreStudyBackup(backup.replace("auto","invalid"))', f.context));
 assert.equal(vm.runInContext("store.marks('E1')[0]",f.context),'restored');
 
 for (const failure of [false,true]) {
