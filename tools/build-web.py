@@ -7,7 +7,7 @@ from frontend import ROOT, prepare
 
 output, config, manifest = prepare('browser')
 for item in manifest:
-    if item['path'].endswith('.xlsx'):
+    if item['path'].lower().endswith('.xlsx'):
         item['data'] = base64.b64encode((output / item['path']).read_bytes()).decode('ascii')
 (output / 'library-data.js').write_text('const BrowserLibrary = ' + json.dumps(manifest, ensure_ascii=True, separators=(',', ':')) + ';\n', encoding='utf-8', newline='\n')
 shutil.copy2(ROOT / 'apps/web/README.md', output / 'README.md')
