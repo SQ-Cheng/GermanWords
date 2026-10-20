@@ -13,7 +13,8 @@
     }
   }
   new MutationObserver(fit).observe(word, {childList:true, characterData:true, subtree:true});
-  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(fit).observe(document.getElementById('germanArea'));
+  // Fit outside observer delivery: changing the word also changes the observed height.
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => requestAnimationFrame(fit)).observe(document.getElementById('germanArea'));
   window.addEventListener('resize', fit);
   fit();
 })();

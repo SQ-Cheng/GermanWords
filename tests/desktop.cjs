@@ -46,14 +46,14 @@ const assert = require('node:assert/strict');
       const before = await page.evaluate(() => localStorage.getItem(MarkStore.key));
       await page.evaluate(() => {
         window.assertBackupRejected = false;
-        try { restoreWindowsBackup('{"format":"GermanWords-Windows","version":1,"marks":{"E1":[42]},"theme":"light","rate":1}'); }
+        try { restoreStudyBackup('{"format":"GermanWords-Windows","version":1,"marks":{"E1":[42]},"theme":"light","rate":1}'); }
         catch (_) { window.assertBackupRejected = true; }
       });
       assert.equal(await page.evaluate(() => assertBackupRejected), true);
       assert.equal(await page.evaluate(() => localStorage.getItem(MarkStore.key)), before);
       await page.evaluate(raw => {
         localStorage.setItem(MarkStore.key, '{}');
-        restoreWindowsBackup(raw);
+        restoreStudyBackup(raw);
       }, JSON.stringify(backup));
       assert.equal(await page.evaluate(() => localStorage.getItem(MarkStore.key)), before);
       await page.reload();
