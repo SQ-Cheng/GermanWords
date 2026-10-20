@@ -79,19 +79,24 @@ async function checkEdition(browser, url, offline, name) {
     await page.locator('#modeSelect').selectOption('normal');
 
     // Real media decoding after a user gesture, including file:// and encoded paths.
+    await page.evaluate(() => { document.getElementById('notice').textContent=''; });
     await page.locator('#cardView').click();
     const windowsWebKitFile = process.platform === 'win32' && name === 'webkit' && offline;
-    if (windowsWebKitFile) {
+    const playback=await page.waitForFunction(() => {
+      if (currentAudio && !currentAudio.paused && currentAudio.readyState >= 2) return 'playing';
+      if (currentAudio === null && /音频.*失败/.test(document.getElementById('notice').textContent)) return 'failed';
+    });
+    const mediaWorks=await playback.jsonValue()==='playing';
+    await playback.dispose();
+    if (!mediaWorks) {
       // Independently reproduced with a plain <audio>: this Windows port fails
       // file media under non-ASCII paths. Keep its remaining checks; HTTP tests
       // still require real decoding. This is not a macOS Safari verification.
-      await page.waitForFunction(() => currentAudio === null && document.getElementById('notice').textContent.includes('音频播放失败'));
+      assert.ok(windowsWebKitFile,`${name}: actual media must play outside the known Windows WebKit file limitation`);
       console.log('LIMIT: Windows WebKit file:// media under non-ASCII paths; actual playback checked over HTTP instead.');
-    } else {
-      await page.waitForFunction(() => currentAudio && !currentAudio.paused && currentAudio.readyState >= 2);
     }
     await page.locator('#playbackRate').selectOption('1.25');
-    if (!windowsWebKitFile) assert.equal(await page.evaluate(() => currentAudio.playbackRate),1.25);
+    if (mediaWorks) assert.equal(await page.evaluate(() => currentAudio.playbackRate),1.25);
     await page.evaluate(() => pauseStudyAudio());
 
     await page.emulateMedia({colorScheme:'dark'});
@@ -171,7 +176,7 @@ async function checkEdition(browser, url, offline, name) {
     ]);
     assert.deepEqual(external,[],'learning has no network dependencies');
     assert.deepEqual(errors,[]);
-    console.log(`PASS: ${name} ${offline?'offline file://':'HTTP subdirectory'}: 460 words/examples/audio matches, ${windowsWebKitFile?'media limit noted':'actual media'}, study, backup, persistence, silent previews, import, layout and external actions`);
+    console.log(`PASS: ${name} ${offline?'offline file://':'HTTP subdirectory'}: 460 words/examples/audio matches, ${mediaWorks?'actual media':'media limit noted'}, study, backup, persistence, silent previews, import, layout and external actions`);
   } finally { await context.close(); }
 }
 

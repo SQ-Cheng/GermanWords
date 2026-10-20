@@ -3,11 +3,26 @@ import base64
 import json
 import shutil
 import unittest
+from html.parser import HTMLParser
+from urllib.parse import urlsplit
 import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 EXTRACTED = ROOT / 'tmp/web-unpacked/Deutsch Wörter'
+
+
+class PageAssets(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.paths = []
+
+    def handle_starttag(self, tag, attrs):
+        values = dict(attrs)
+        if tag == 'script' and values.get('src'):
+            self.paths.append(values['src'])
+        elif tag == 'link' and values.get('rel') == 'stylesheet':
+            self.paths.append(values['href'])
 
 
 class WebBundle(unittest.TestCase):
@@ -18,6 +33,13 @@ class WebBundle(unittest.TestCase):
             self.assertEqual(len(names), len(set(names)))
             self.assertTrue(all(name.startswith('GermanWords/') and '..' not in Path(name).parts for name in names))
             html = bundle.read('GermanWords/index.html').decode('utf-8')
+            assets = PageAssets()
+            assets.feed(html)
+            self.assertTrue(assets.paths)
+            for reference in assets.paths:
+                uri = urlsplit(reference)
+                self.assertFalse(uri.scheme or uri.netloc or reference.startswith('/') or '..' in Path(uri.path).parts)
+                self.assertIn('GermanWords/' + uri.path, names, 'Missing local script or stylesheet: ' + reference)
             for native_only in ['desktop.js', 'feedback.js', 'updateDialog', '../../shared/', '__TAURI__']:
                 self.assertNotIn(native_only, html)
             self.assertFalse(any(Path(name).name in {'app-config.json', 'library.json', 'desktop.js', 'feedback.js'} for name in names))
