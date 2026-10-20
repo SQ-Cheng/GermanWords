@@ -2,6 +2,8 @@
 
 基线：`codex/update-source-investigation` 的 `e44bdeb`。实现分支：`codex/windows-desktop-migration`。先确定边界，再实现；不合并 main、不替换旧云盘更新入口。
 
+本文保留当时迁移的设计与审核记录；当前桌面共用界面已移至 `apps/web/`，最新目录边界以 [结构与维护约定](architecture.md) 为准。
+
 ## 初稿
 
 采用 Tauri 2 / WebView2，继续使用普通 HTML/CSS/JavaScript 学习界面，不引入前端框架。Windows 用 NSIS 按用户安装，保留系统窗口边框、标准缩放和关闭行为。Android 宿主、界面及学习引擎不迁移。

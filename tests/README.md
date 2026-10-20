@@ -33,13 +33,28 @@ pnpm --dir tests install --frozen-lockfile
 pnpm --dir tests test:browser
 ```
 
-`browser.cjs` 检查源码页面和离线发布包的主题跟随、手动覆盖、重载保存、词库导入与学习交互；无需修改生产代码或启动外部服务。真机测试会短暂覆盖学习状态和主题，然后还原；触摸测试期间应保持手机解锁并让应用留在前台。
+`browser.cjs` 检查生成的 Windows 前端的主题跟随、手动覆盖、重载保存、词库导入与学习交互；无需修改生产代码或启动外部服务。真机测试会短暂覆盖学习状态和主题，然后还原；触摸测试期间应保持手机解锁并让应用留在前台。
 
 本轮回归还覆盖双端 460 词混合与唯一 ID、原单元星标隔离、搜索与乱序组合、Android 混合进度恢复、无结果保留位置、Windows 卡片点击仅播放一次、语速保存与当前录音变速、同名导入录音的来源匹配。真机测试实际读取 MediaPlayer 的倍速，结束时还原原有语速偏好。
 
 架构审查补充：共享星标存储覆盖旧 JSON、外部恢复、损坏数据、存储失败的内存回退；Windows 还验证卡片和列表隐藏答案、音频取消、逐行揭晓/星标/键盘以及词库替换清空旧状态。
 
-Windows 桌面迁移后，先运行 `python tools/build-windows.py`，浏览器回归同时覆盖源码与生成前端。`node tests/legacy-migration.cjs` 验证在原 file:// 地址替换迁移页后保留并导出旧星标/主题/语速。`tests/desktop.cjs` 针对真实 Tauri WebView2 检查内置词库、备份校验、重载保持、主题和 480–1120px 响应布局；按 `apps/windows/README.md` 启动隔离测试实例后执行，测试专用调试端口不进入正式运行方式。
+Windows 桌面迁移后，先运行 `python tools/build-windows.py`，再测试生成前端。`node tests/legacy-migration.cjs` 验证在原 file:// 地址替换迁移页后保留并导出旧星标/主题/语速。`tests/desktop.cjs` 针对真实 Tauri WebView2 检查内置词库、备份校验、重载保持、主题和 480–1120px 响应布局；按 `apps/windows/README.md` 启动隔离测试实例后执行，测试专用调试端口不进入正式运行方式。
+
+免安装浏览器版使用同一套锁定依赖。在仓库根目录执行：
+
+```powershell
+python tools/build-web.py
+pnpm --dir tests install --frozen-lockfile
+pnpm --dir tests exec playwright install firefox webkit
+pnpm --dir tests test:web
+```
+
+Windows 上的 Chromium 使用本机 Edge，其他系统先执行 `pnpm --dir tests exec playwright install chromium`；Firefox 与 WebKit 由 Playwright 安装。可在安装和运行时使用相同的 `PLAYWRIGHT_BROWSERS_PATH` 自定义浏览器存放位置。浏览器二进制、Node 依赖和测试服务不会进入应用包。
+
+`test_web_bundle.py` 验证 ZIP 中词表、录音与公共原件逐字节一致，嵌入 XLSX 数据也一致，确认不含原生适配/配置，再解压到忽略的临时目录。`web.cjs` 对该解压包执行三种引擎的本地文件与 HTTP 子目录回归；临时 HTTP 服务仅用于测试，生产使用无需服务。覆盖 460 词/例句/录音匹配、真实播放与变速、搜索、自测、列表、备份导入导出及校验、重载保存、存储不可写降级、静音预览、快捷键、文件导入及 480–1280px/大字号布局。学习过程断言无外部请求；反馈/更新只验证外链，不提交数据。
+
+本地文件回归阻断全部 HTTP(S) 请求；Chromium、Firefox 同时启用离线模拟。Windows WebKit 的离线模拟会连 file:// 导航也阻止，故仅采用网络请求阻断。另独立复现了 Windows WebKit 在非 ASCII 本地路径下的 MP3 播放失败（普通音频页同样失败）：该组合明确记录媒体限制，其余功能继续测试，HTTP 模式必须实际播放。不能把此项记为完整离线音频通过。WebKit 在 Windows 上的回归不等同于 macOS Safari 实测；实际 macOS、Linux、iOS 设备尚未验证。参见 [Playwright 的引擎与平台说明](https://playwright.dev/docs/browsers)。
 
 旧 PowerShell 更新器已随架构迁移移除，不再维护其测试；历史验证记录保留。当前安装器、真实云盘升级和验证边界见 `artifacts/windows-desktop-verification.md`。
 

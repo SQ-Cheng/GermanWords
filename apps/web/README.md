@@ -14,4 +14,4 @@
 
 维护者在仓库根目录运行 `python tools/build-web.py`（Python 3.10+）。生成目录在 `output/web/GermanWords/`，ZIP 在同一上级目录。最终用户无需 Python。`apps/web/` 的学习界面及备份逻辑也供 Windows Tauri 使用，浏览器适配在 `browser.js`，平台能力不进入共享学习逻辑。
 
-基础浏览器能力要求包括原生 XLSX 解压、dialog、ResizeObserver 与标准媒体播放。实际浏览器引擎、平台测试范围见仓库测试文档；引擎回归不代表已完成所有 macOS、Linux 或 iOS 设备实测。
+浏览器需支持 `DecompressionStream('deflate-raw')`、ResizeObserver 与 MP3 播放；不支持解压时会提示升级浏览器。实际浏览器引擎、平台测试范围见仓库测试文档；引擎回归不代表已完成所有 macOS、Linux 或 iOS 设备实测。
