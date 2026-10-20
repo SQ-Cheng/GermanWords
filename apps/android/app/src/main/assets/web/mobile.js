@@ -213,6 +213,8 @@ function restoreBackup(raw) {
     applyPreferences();
     if (data.theme !== undefined) AppTheme.setMode(data.theme);
     if (data.rate !== undefined) changePlaybackRate(data.rate);
+    searchQuery = '';
+    document.getElementById('wordSearch').value = '';
     reloadLibrary();
     notify('学习进度已恢复', 'info');
   } catch (e) { notify('恢复失败：' + e.message, 'error'); }

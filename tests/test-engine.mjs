@@ -33,6 +33,7 @@ vm.runInContext(fs.readFileSync(path.join(root,'shared/marks.js'),'utf8'),contex
 vm.runInContext(fs.readFileSync(path.join(root,'shared/library.js'),'utf8'),context);
 vm.runInContext(fs.readFileSync(path.join(web,'engine.js'),'utf8'),context);
 vm.runInContext(fs.readFileSync(path.join(web,'mobile.js'),'utf8').replace(/reloadLibrary\(\);\s*$/, ''),context);
+const reloadNativeLibrary=vm.runInContext('reloadLibrary',context);
 vm.runInContext('autoPlayEnabled=false;',context);
 const words=path.join(root,'shared/words');
 const files=fs.readdirSync(words,{recursive:true}).filter(name=>fs.statSync(path.join(words,name)).isFile()).map(name=>({name:path.basename(name),root:'built-in',webkitRelativePath:'words/'+name.replaceAll('\\','/'),url:'/assets/web/words/'+name.replaceAll('\\','/'),arrayBuffer:async()=>{const b=fs.readFileSync(path.join(words,name));return b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength);}}));
@@ -201,3 +202,26 @@ vm.runInContext('window.finishCourseRead(new ArrayBuffer(0))',context);await pen
 assert.equal(vm.runInContext('library.current().id',context),'german1');
 assert.equal(vm.runInContext('currentFileWords.length',context),65,'obsolete course reads cannot replace the selected course');
 console.log('PASS: Android course switching, 381 German 2 words/unique mixed IDs, no cross-course audio, and obsolete-course read cancellation.');
+
+// Restore another course through the native manifest/asset path, with an old search active.
+context.Android.manifest=()=>JSON.stringify(files.map(file=>({name:file.name,path:file.webkitRelativePath,url:file.url})));
+context.fetch=async url=>{
+  const file=files.find(file=>file.url===decodeURIComponent(new URL(url).pathname));
+  return {ok:!!file,arrayBuffer:()=>file.arrayBuffer()};
+};
+let pendingRestore;
+context.reloadLibrary=(...args)=>(pendingRestore=reloadNativeLibrary(...args));
+vm.runInContext("searchWords('lernen');document.getElementById('wordSearch').value='lernen'",context);
+assert.equal(vm.runInContext('displayWords.length',context),1);
+vm.runInContext("restoreBackup(JSON.stringify({version:1,marks:{},preferences:{course:'german2',file:'@course:german2:E1 单词汇总.xlsx'}}))",context);
+await pendingRestore;
+assert.equal(vm.runInContext('library.current().id',context),'german2');
+assert.equal(vm.runInContext('currentFileWords.length',context),37);
+assert.equal(vm.runInContext('displayWords.length',context),37,'a previous course search must not hide restored words');
+assert.equal(vm.runInContext('searchQuery',context),'');
+assert.equal(get('wordSearch').value,'');
+vm.runInContext("restoreBackup(JSON.stringify({version:1,marks:{},preferences:{file:'E1_单词汇总.xlsx'}}))",context);
+await pendingRestore;
+assert.equal(vm.runInContext('library.current().id',context),'german1');
+assert.equal(vm.runInContext('displayWords.length',context),65,'legacy course backups still restore the original course');
+console.log('PASS: Android native library reload and new/legacy course backup restore clear transient search.');

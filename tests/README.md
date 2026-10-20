@@ -57,6 +57,8 @@ Windows 上的 Chromium 使用本机 Edge，其他系统先执行 `pnpm --dir te
 
 `course-ui.cjs` 供浏览器回归与真实 Tauri 回归复用，实际操作课程选择器，验证德语（2）的 9 份词表、381 个唯一词条、缺失录音状态、课程星标隔离、重启恢复和新旧备份兼容。两种桌面测试分别通过真实文件输入导入词表，验证切换两门课程后导入键与星标保持。Android 设备入口通过触摸和系统选择控件切换课程，检查导入词表/星标全局有效、200% 字号的德语（2）长词和课程菜单边界；测试组件仍仅在独立测试 APK 中。
 
+`test-engine.mjs` 还通过原生 manifest 与资源读取适配模拟备份恢复，实际解析词表，验证跨课程恢复时清空旧搜索、完整显示新词表，并兼容未记录课程的旧备份。
+
 本地文件回归阻断全部 HTTP(S) 请求；Chromium、Firefox 同时启用离线模拟。Windows WebKit 的离线模拟会连 file:// 导航也阻止，故仅采用网络请求阻断。另独立复现了 Windows WebKit 在非 ASCII 本地路径下的 MP3 播放失败（普通音频页同样失败）：该组合明确记录媒体限制，其余功能继续测试，HTTP 模式必须实际播放。不能把此项记为完整离线音频通过。WebKit 在 Windows 上的回归不等同于 macOS Safari 实测；实际 macOS、Linux、iOS 设备尚未验证。参见 [Playwright 的引擎与平台说明](https://playwright.dev/docs/browsers)。
 
 旧 PowerShell 更新器已随架构迁移移除，不再维护其测试；历史验证记录保留。当前安装器、真实云盘升级和验证边界见 `artifacts/windows-desktop-verification.md`。
