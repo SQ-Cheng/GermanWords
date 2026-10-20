@@ -9,6 +9,7 @@ artifacts/*.png
 artifacts/*.log
 tmp/
 output/windows/
+output/web/
 node_modules/
 output/releases/
 
