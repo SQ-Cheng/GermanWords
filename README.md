@@ -22,19 +22,19 @@ GermanWords 是离线德语词汇学习工具，提供 Android、Windows 客户�
 
 ## 最新版本与安装
 
-当前最新预发布版为 [**4.2.1-beta.2**](https://github.com/SQ-Cheng/GermanWords/releases/tag/v4.2.1-beta.2)，提供 Android APK、Windows x64 桌面安装包、旧版迁移包及 SHA-256 校验文件。本版统一卡片侧边翻页与进度条静音预览，改进大字号下的词形显示，补齐 149 条例句，并精简反馈说明、修复桌面卡片内容下沉及操作后快捷键失效。正式版与历史安装包见 GitHub Releases；预发布版以对应发布页说明为准。
+当前最新预发布版为 [**4.2.1-beta.3**](https://github.com/SQ-Cheng/GermanWords/releases/tag/v4.2.1-beta.3)，提供 Android APK、Windows x64 桌面安装包、免安装浏览器 ZIP、旧版迁移包及 SHA-256 校验文件。本版新增浏览器版，与 Windows 共用桌面界面及备份逻辑，并修复 Firefox 进度条轨道显示和 WebKit 字号适配的尺寸观察警告。正式版与历史安装包见 GitHub Releases；预发布版以对应发布页说明为准。
 
 **Android：**下载 APK 后按系统提示安装。覆盖升级须使用相同应用签名。
 
 **Windows：**下载 `GermanWords-Windows-…-x86_64-Setup.exe` 并运行。桌面版使用 Tauri / WebView2，首次安装若缺少 WebView2，安装器会尝试联网下载安装运行环境。当前提供 x64 包。
 
-**macOS / Linux 等桌面系统：**使用浏览器版，完整解压 `GermanWords-Web-…zip` 后用近期版本的 Safari、Firefox、Chrome 或 Edge 打开其中的 `GermanWords/index.html`，无需安装运行环境。尚未包含在上述已发布版本中的浏览器包可按下文从源码构建。浏览器版通过下载新包更新；星标和设置请定期导出备份，路径或浏览器变化可能隔离本地存储。使用与兼容性边界见 [浏览器版说明](apps/web/README.md)。
+**macOS / Linux 等桌面系统：**下载浏览器版，完整解压 `GermanWords-Web-…zip` 后用近期版本的 Safari、Firefox、Chrome 或 Edge 打开其中的 `GermanWords/index.html`，无需安装运行环境。浏览器版通过下载新包更新；星标和设置请定期导出备份，路径或浏览器变化可能隔离本地存储。使用与兼容性边界见 [浏览器版说明](apps/web/README.md)。
 
 旧 Windows HTML 版迁移到桌面版时，需运行新的安装包；可使用发布页提供的迁移 ZIP，在原页面地址导出星标与设置，再导入桌面版。操作见 [Windows 说明](apps/windows/README.md)。PDF 对应早期 Android 界面，具体操作以当前应用及平台文档为准。
 
 ## 源码与开发
 
-本仓库维护 Android、Windows 及浏览器客户端。开发源码可能领先于公开安装包；复现已发布版本请检出相应 Git 标签，例如 `v4.2.1-beta.2`。功能修改在开发分支中进行，本机 SDK 路径、私钥和构建产物不提交到 Git。
+本仓库维护 Android、Windows 及浏览器客户端。开发源码可能领先于公开安装包；复现已发布版本请检出相应 Git 标签，例如 `v4.2.1-beta.3`。功能修改在开发分支中进行，本机 SDK 路径、私钥和构建产物不提交到 Git。
 
 | 目录 | 职责 |
 | --- | --- |
