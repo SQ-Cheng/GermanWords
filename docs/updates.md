@@ -9,25 +9,28 @@
 ```text
 Release/
   update-beta.json
-  4.2.1-beta.1/
-    GermanWords-Android-4.2.1-beta.1.apk
-    GermanWords-Windows-4.2.1-beta.1-x86_64-Setup.exe
-    GermanWords-Windows-4.2.1-beta.1-x86_64-Setup.exe.sig
+  4.2.1-beta.3/
+    GermanWords-Android-4.2.1-beta.3.apk
+    GermanWords-Windows-4.2.1-beta.3-x86_64-Setup.exe
+    GermanWords-Windows-4.2.1-beta.3-x86_64-Setup.exe.sig
+    GermanWords-Web-4.2.1-beta.3.zip
     SHA256SUMS.txt
 ```
 
-当前发布版本为 `4.2.1-beta.1`（Android versionCode 11）。`update-beta.json` 同时包含 Tauri 官方需要的 `version` / `notes` / `platforms` 和 Android 的 RSA `payload` / `signature`。Android 签名载荷内的安装包路径必须严格对应版本子目录和文件名；Windows 平台项使用只读分享下该子目录的下载 URL，并携带官方安装包签名。无需自建服务器，也不统一两种安装协议。
+当前发布版本为 `4.2.1-beta.3`（Android versionCode 13）。`update-beta.json` 同时包含 Tauri 官方需要的 `version` / `notes` / `platforms` 和 Android 的 RSA `payload` / `signature`。Android 签名载荷内的安装包路径必须严格对应版本子目录和文件名；Windows 平台项使用只读分享下该子目录的下载 URL，并携带官方安装包签名。无需自建服务器，也不统一两种安装协议。
 
 版本、通道、来源与公钥唯一维护于 `shared/app-config.json`。更换来源只能影响新构建；已安装旧版仍读取旧地址，需要手动安装新包，或在原入口另行安排迁移。本工具不修改原入口，也不继续维护 HTML 原型的更新包；旧版迁移导出工具仍由构建脚本生成。
 
 ## 客户端行为
 
-双端启动时后台检查，每天至多成功检查一次；手动检查不受此限制。无网络或服务异常不影响学习。发现更高版本后先展示更新说明，由用户确认下载。
+Android 与 Windows 启动时后台检查，每天至多成功检查一次；手动检查不受此限制。无网络或服务异常不影响学习。发现更高版本后先展示更新说明，由用户确认下载。
 
 - Android 验证 RSA 元数据签名，下载后核对 SHA-256、大小、包名、版本和应用签名，再交给系统 PackageInstaller。待授权缓存持久化，恢复时重新校验；取消会清理。
 - Windows 使用 Tauri 官方更新插件，验证安装包签名后关闭应用并运行 NSIS 安装器。学习数据位于独立用户目录。
 - 下载与反馈请求只允许指定来源主机的 HTTPS 默认端口；GET 重定向有次数限制，反馈 POST 不重放。学习 WebView 的资源访问和导航仍限于本地。
 - 客户端使用“检查更新”“下载更新”“意见反馈”等通用措辞，错误提示不输出服务商、URL、令牌或网络异常详情。
+
+浏览器版不读取原生更新索引、不调用安装器或原生反馈发送器。「下载新版」打开 GitHub 发布页，用户导出备份后替换完整 ZIP；静态托管由维护者替换全部文件。浏览器 ZIP 用 `python tools/build-web.py` 构建，可作为 `--extra` 附件与安装包放在同一版本目录，保留现有双端签名索引格式。
 
 ## 构建与发布
 

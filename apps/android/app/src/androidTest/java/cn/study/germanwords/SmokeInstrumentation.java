@@ -39,6 +39,8 @@ public class SmokeInstrumentation extends Instrumentation {
         String oldPreferences=null;
         String oldTheme=null;
         String oldRate=null;
+        String oldCourse=null;
+        String oldMarks=null;
         try {
             Intent intent=new Intent(getTargetContext(), MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             activity=(MainActivity)startActivitySync(intent);
@@ -70,6 +72,8 @@ public class SmokeInstrumentation extends Instrumentation {
             }
             oldTheme=evaluate("localStorage.getItem('german_theme_v1')");
             oldRate=evaluate("localStorage.getItem('german_playback_rate_v1')");
+            oldCourse=evaluate("localStorage.getItem(StudyLibrary.storageKey)");
+            oldMarks=evaluate("store.readAll()");
             AtomicReference<Boolean> focused=new AtomicReference<>(false);
             for(int i=0;i<80;i++) {
                 runOnMainSync(() -> {activity.web.requestFocus();focused.set(activity.hasWindowFocus());});
@@ -93,6 +97,10 @@ public class SmokeInstrumentation extends Instrumentation {
             }
             if(!result.contains("PASS"))throw new IOException("Engine device tests: "+result);
             oldPreferences=evaluate("localStorage.getItem(PREF_KEY)");
+            selectCourseOnDevice("german2");
+            if(!"true".equals(evaluate("currentFileWords.length===37 && document.getElementById('courseName').textContent==='德语（2）'")))throw new IOException("Physical course selector did not load German 2");
+            screenshot("qa-course-german2.png");
+            selectCourseOnDevice("german1");
             evaluate("autoPlayEnabled=false;isFilterActive=false;switchView('card');document.getElementById('modeSelect').value='normal';changeMode()");
             evaluate("currentIndex=0;updateUI()");
             swipeCard();
@@ -106,17 +114,30 @@ public class SmokeInstrumentation extends Instrumentation {
             if(!"true".equals(evaluate("currentIndex>=displayWords.length*.7 && currentIndex<=displayWords.length*.9 && preferences.books[currentFileName].word===displayWords[currentIndex].id")))throw new IOException("Physical progress drag did not navigate and persist");
             for(float scale:new float[]{1f,1.3f,1.5f,2f}) {
                 runOnMainSync(() -> activity.applyTextScale(scale));
+                evaluate("currentIndex=displayWords.reduce((longest,word,index)=>word.german.length>displayWords[longest].german.length?index:longest,0);updateUI()");
                 SystemClock.sleep(300);
+                if(!"true".equals(evaluate("(()=>{const word=document.getElementById('cardGerman');return word.scrollWidth<=word.clientWidth+1 && getComputedStyle(word).whiteSpace==='nowrap'})()")))throw new IOException("Longest word must fit on one line at zoom "+scale+" "+evaluate("(()=>{const word=document.getElementById('cardGerman');return JSON.stringify({text:word.textContent,width:word.clientWidth,scroll:word.scrollWidth,font:getComputedStyle(word).fontSize,inline:word.style.fontSize,parent:word.parentElement.clientWidth})})()"));
                 if(!"true".equals(evaluate("document.documentElement.scrollWidth<=innerWidth+1 && document.querySelector('.main-content').scrollWidth<=innerWidth+1")))throw new IOException("Horizontal overflow at text zoom "+scale);
                 if(!"true".equals(evaluate("document.body.scrollHeight<=innerHeight+1 && document.querySelector('.study-footer').getBoundingClientRect().bottom<=innerHeight+1 && document.getElementById('cardView').getBoundingClientRect().bottom<=innerHeight+1")))throw new IOException("Card or footer outside viewport at text zoom "+scale+" "+evaluate("JSON.stringify({h:innerHeight,body:document.body.scrollHeight,footer:document.querySelector('.study-footer').getBoundingClientRect().toJSON(),card:document.getElementById('cardView').getBoundingClientRect().toJSON()})"));
                 if(!"true".equals(evaluate("(()=>{const card=document.querySelector('.card-body');return card.scrollHeight<=card.clientHeight+1})()")))throw new IOException("Built-in card requires scrolling at text zoom "+scale);
                 if(!"true".equals(evaluate("[document.querySelector('.star-mark'),document.getElementById('pronounceIcon'),document.getElementById('btnPrevCard'),document.getElementById('btnNextCard')].every(el=>{const r=el.getBoundingClientRect();return Math.abs(r.width-r.height)<=1 && r.width>=44})")))throw new IOException("Card buttons must remain circular at text zoom "+scale);
+                if(!"true".equals(evaluate("(()=>{const card=document.getElementById('cardView').getBoundingClientRect(),body=document.querySelector('.card-body').getBoundingClientRect(),left=document.getElementById('btnPrevCard').getBoundingClientRect(),right=document.getElementById('btnNextCard').getBoundingClientRect();return left.left>=card.left && left.right<=body.left && right.left>=body.right && right.right<=card.right && left.top>=card.top && left.bottom<=card.bottom && right.top>=card.top && right.bottom<=card.bottom})()")))throw new IOException("Side buttons must stay inside the card without overlapping text at zoom "+scale);
                 evaluate("document.getElementById('libraryButton').scrollIntoView({block:'nearest'});openLibrary()");
                 if(scale==2f)screenshot("qa-library-200.png");
                 if(!"true".equals(evaluate("libraryOpen && document.getElementById('library').scrollWidth<=innerWidth+1")))throw new IOException("Drawer at text zoom "+scale);
+                if(!"true".equals(evaluate("document.getElementById('courseSelect').getBoundingClientRect().right<=innerWidth+1")))throw new IOException("Course selector clipped at text zoom "+scale);
+                if(scale==2f) {
+                    selectCourseOnDevice("german2");
+                    evaluate("currentIndex=displayWords.reduce((best,word,index)=>word.german.length>displayWords[best].german.length?index:best,0);updateUI()");
+                    SystemClock.sleep(200);
+                    if(!"true".equals(evaluate("document.getElementById('cardGerman').scrollWidth<=document.getElementById('cardGerman').clientWidth+1 && document.documentElement.scrollWidth<=innerWidth+1 && document.querySelector('.study-footer').getBoundingClientRect().bottom<=innerHeight+1")))throw new IOException("German 2 large-font layout");
+                    screenshot("qa-course-200.png");
+                    selectCourseOnDevice("german1");
+                }
                 evaluate("closeLibrary();document.getElementById('lessonTitle').scrollIntoView({block:'start'})");
                 SystemClock.sleep(100);
                 evaluate("Feedback.open()");
+                if(!"true".equals(evaluate("document.getElementById('feedbackDescription').textContent==='请勿填写密码等敏感信息。'")))throw new IOException("Android feedback description must stay concise");
                 if(!"true".equals(evaluate("document.getElementById('feedbackDialog').open && document.getElementById('feedbackDialog').scrollWidth<=document.getElementById('feedbackDialog').clientWidth+1")))throw new IOException("Feedback layout at text zoom "+scale);
                 if(!"true".equals(evaluate("handleAndroidBack()")))throw new IOException("Feedback back did not close");
                 screenshot("qa-font-"+Math.round(scale*100)+".png");
@@ -133,6 +154,7 @@ public class SmokeInstrumentation extends Instrumentation {
                 runOnMainSync(() -> activity.applyTextScale(scale));SystemClock.sleep(300);
                 SystemClock.sleep(100);
                 if(!"true".equals(evaluate("innerWidth<=321 && document.querySelector('.main-content').scrollWidth<=innerWidth+1 && document.querySelector('.study-footer').getBoundingClientRect().bottom<=innerHeight+1")))throw new IOException("320dp card layout at text zoom "+scale);
+                if(!"true".equals(evaluate("(()=>{const word=document.getElementById('cardGerman');return word.scrollWidth<=word.clientWidth+1 && getComputedStyle(word).whiteSpace==='nowrap'})()")))throw new IOException("320dp longest word must fit on one line at zoom "+scale);
                 evaluate("switchView('list');document.getElementById('modeSelect').value='test-de';changeMode()");
                 if(!"true".equals(evaluate("document.getElementById('wordTable').getBoundingClientRect().right<=innerWidth+1")))throw new IOException("320dp list layout at text zoom "+scale);
                 evaluate("switchView('card');document.getElementById('modeSelect').value='normal';changeMode()");
@@ -189,6 +211,18 @@ public class SmokeInstrumentation extends Instrumentation {
             }
             if(!playing.get())throw new IOException("Imported recording did not play");
             evaluate("pauseStudyAudio()");
+            String importedKey=evaluate("currentBookNames[0]");
+            evaluate("if(!displayWords[0].marked)toggleCurrentMark()");
+            for(String course:new String[]{"german2","german1"}) {
+                selectCourseOnDevice(course);
+                if(!"true".equals(evaluate("!!fileMap["+importedKey+"] && document.querySelectorAll('.file-item[data-imported=true]').length>0")))throw new IOException("Imported book disappeared after course selection");
+                evaluate("loadFile("+importedKey+")");
+                waitImported("SAF-Test.xlsx");
+                if(!"true".equals(evaluate("currentBookNames[0]==="+importedKey+" && displayWords[0].marked && document.getElementById('courseName').textContent==='我的词表'")))throw new IOException("Global import identity/star changed with course");
+            }
+            evaluate("openLibrary();document.getElementById('library').scrollTop=0");
+            screenshot("qa-course-imports.png");
+            evaluate("closeLibrary()");
             Uri single=DocumentsContract.buildDocumentUri(FixtureDocumentsProvider.AUTHORITY,"file");
             runOnMainSync(() -> activity.onActivityResult(MainActivity.FILES,Activity.RESULT_OK,new Intent().setData(single)));
             waitImported("Individual-Test.xlsx");
@@ -200,7 +234,7 @@ public class SmokeInstrumentation extends Instrumentation {
             if(!"true".equals(evaluate("innerWidth>innerHeight && document.documentElement.scrollWidth<=innerWidth+1 && document.querySelector('.study-footer').getBoundingClientRect().bottom<=innerHeight+1")))throw new IOException("Landscape layout");
             runOnMainSync(() -> activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED));
             android.util.Log.d("GermanWordsTest","Landscape verified");
-            results.putString("stream", "\n"+result+"\nPASS: physical swipe/progress drag, 100/130/150/200% single-screen layout/circular controls, 320dp, themes/system bars, native audio with live 0.75x/1.25x speed, SAF import and landscape.\n");
+            results.putString("stream", "\n"+result+"\nPASS: physical course picker and global imports/stars, German 2 at 200%, swipe/progress drag, 100/130/150/200% single-screen layout/circular controls, 320dp, themes/system bars, native audio with live 0.75x/1.25x speed, SAF import and landscape.\n");
             resultCode=Activity.RESULT_OK;
         } catch(Exception e) {
             results.putString("stream", "\nFAIL: "+e+"\n");
@@ -219,7 +253,7 @@ public class SmokeInstrumentation extends Instrumentation {
                 }catch(Exception ignored){}
             }
             if(activity!=null && oldPreferences!=null)try {
-                evaluate("pauseStudyAudio();"+("null".equals(oldPreferences)?"localStorage.removeItem(PREF_KEY)":"localStorage.setItem(PREF_KEY,"+oldPreferences+")")+";preferences=JSON.parse(localStorage.getItem(PREF_KEY)||'{}');applyPreferences();reloadLibrary()");
+                evaluate("pauseStudyAudio();library.select("+(oldCourse==null || "null".equals(oldCourse)?"'german1'":oldCourse)+");"+(oldMarks==null?"":"store.replaceAll("+oldMarks+");")+("null".equals(oldPreferences)?"localStorage.removeItem(PREF_KEY)":"localStorage.setItem(PREF_KEY,"+oldPreferences+")")+";preferences=JSON.parse(localStorage.getItem(PREF_KEY)||'{}');applyPreferences();reloadLibrary()");
             }catch(Exception ignored){}
             if(activity!=null)runOnMainSync(() -> {
                 activity.web.setLayoutParams(new android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.MATCH_PARENT,android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
@@ -233,6 +267,26 @@ public class SmokeInstrumentation extends Instrumentation {
         try(InputStream in=new FileInputStream(file);ByteArrayOutputStream out=new ByteArrayOutputStream()) {
             byte[] buf=new byte[4096];int n;while((n=in.read(buf))!=-1)out.write(buf,0,n);return out.toByteArray();
         }
+    }
+    private void selectCourseOnDevice(String id) throws Exception {
+        evaluate("openLibrary();document.getElementById('library').scrollTop=0");
+        SystemClock.sleep(250);
+        tapControl("courseSelect");
+        SystemClock.sleep(200);
+        android.view.accessibility.AccessibilityNodeInfo root=getUiAutomation().getRootInActiveWindow();
+        if(root==null)throw new IOException("Native course picker is not visible");
+        String label=id.equals("german2")?"德语（2）":"德语（1）";
+        boolean clicked=false;
+        for(android.view.accessibility.AccessibilityNodeInfo node:root.findAccessibilityNodeInfosByText(label)) {
+            while(node!=null && !node.isClickable())node=node.getParent();
+            if(node!=null && node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)){clicked=true;break;}
+        }
+        if(!clicked)throw new IOException("Course option is not accessible: "+label);
+        for(int i=0;i<60;i++) {
+            if("true".equals(evaluate("library.current().id==='"+id+"' && currentBookNames.length===1 && fileMap[currentBookNames[0]].course==='"+id+"'")))return;
+            SystemClock.sleep(100);
+        }
+        throw new IOException("Course did not finish loading: "+id);
     }
     private void screenshot(String name) throws IOException {
         SystemClock.sleep(250);
@@ -260,7 +314,11 @@ public class SmokeInstrumentation extends Instrumentation {
         float y=location[1]+Float.parseFloat(evaluate("(()=>{const r=document.getElementById('studyProgress').getBoundingClientRect();return r.top+r.height/2})()"))*scale;
         float left=Float.parseFloat(evaluate("document.getElementById('studyProgress').getBoundingClientRect().left"));
         float width=Float.parseFloat(evaluate("document.getElementById('studyProgress').getBoundingClientRect().width"));
-        drag(location[0]+(left+width*.2f)*scale,location[0]+(left+width*.8f)*scale,y);
+        evaluate("window.progressOriginalPlay=playPronounce;window.progressOldAutoPlay=autoPlayEnabled;autoPlayEnabled=true;window.progressPlays=0;playPronounce=()=>progressPlays++");
+        try {
+            drag(location[0]+(left+width*.2f)*scale,location[0]+(left+width*.8f)*scale,y,true);
+            if(!"true".equals(evaluate("progressPlays===1")))throw new IOException("Release must play only the final preview word");
+        } finally { evaluate("playPronounce=window.progressOriginalPlay;autoPlayEnabled=window.progressOldAutoPlay"); }
     }
     private void waitIndex(int expected) throws Exception {
         for(int i=0;i<30;i++) {
@@ -281,6 +339,9 @@ public class SmokeInstrumentation extends Instrumentation {
         }
     }
     private void drag(float start,float end,float y) throws Exception {
+        drag(start,end,y,false);
+    }
+    private void drag(float start,float end,float y,boolean progress) throws Exception {
         long down=SystemClock.uptimeMillis();
         for(int i=0;i<=12;i++) {
             int action=i==0?android.view.MotionEvent.ACTION_DOWN:i==12?android.view.MotionEvent.ACTION_UP:android.view.MotionEvent.ACTION_MOVE;
@@ -289,6 +350,10 @@ public class SmokeInstrumentation extends Instrumentation {
             getUiAutomation().injectInputEvent(event,true);
             event.recycle();
             SystemClock.sleep(20);
+            if(progress && i==10) {
+                SystemClock.sleep(180);
+                if(!"true".equals(evaluate("progressPlays===0 && autoPlayTimer===null && currentAudio===null && currentIndex>displayWords.length*.6 && document.getElementById('cardChinese').innerText===displayWords[currentIndex].chinese")))throw new IOException("Held slider must preview the target card without audio");
+            }
         }
         SystemClock.sleep(150);
     }

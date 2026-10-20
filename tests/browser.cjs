@@ -9,8 +9,7 @@ process.chdir(path.resolve(__dirname,'..'));
   const browser = await chromium.launch({headless:true, channel:'msedge'});
   try {
     for (const [html, words] of [
-      ['apps/windows/frontend/index.html','shared/words'],
-      ['output/windows/web/index.html','output/windows/web/words']
+      ['output/windows/web/index.html','output/windows/web/words/german1']
     ]) {
       const page = await browser.newPage();
       const errors = [];
@@ -48,6 +47,60 @@ process.chdir(path.resolve(__dirname,'..'));
         return {words,audio};
       });
       assert.deepEqual(totals, {words:460,audio:460});
+      for (const size of [{width:1280,height:900},{width:960,height:640},{width:480,height:720}]) {
+        await page.setViewportSize(size);
+        const misplaced = await page.evaluate(async () => {
+          const failures = [];
+          for (const name of Object.keys(fileMap)) {
+            await loadFile(name);
+            for (currentIndex = 0; currentIndex < displayWords.length; currentIndex++) {
+              renderCard();
+              const card = document.querySelector('.card-body');
+              const bounds = card.getBoundingClientRect(), style = getComputedStyle(card);
+              const top = document.getElementById('germanArea').getBoundingClientRect().top - bounds.top - parseFloat(style.borderTopWidth) - parseFloat(style.paddingTop);
+              const bottom = bounds.bottom - parseFloat(style.borderBottomWidth) - parseFloat(style.paddingBottom) - document.getElementById('clickHint').getBoundingClientRect().bottom;
+              if (card.scrollHeight <= card.clientHeight + 1 && Math.abs(top - bottom) > 2)
+                failures.push(displayWords[currentIndex].german);
+              if (top < -1) failures.push('clipped: ' + displayWords[currentIndex].german);
+            }
+          }
+          pauseStudyAudio();
+          return failures;
+        });
+        assert.deepEqual(misplaced, [], `card content stays centered and its beginning remains reachable at ${size.width}×${size.height}`);
+        assert.equal(await page.evaluate(()=>{
+          const card=document.getElementById('cardView').getBoundingClientRect(),body=document.querySelector('.card-body').getBoundingClientRect();
+          const left=document.getElementById('btnPrevCard').getBoundingClientRect(),right=document.getElementById('btnNextCard').getBoundingClientRect();
+          return left.left>=card.left && left.right<=body.left && right.left>=body.right && right.right<=card.right
+            && Math.abs(left.top+left.height/2-(card.top+card.height/2))<1 && Math.abs(right.top-left.top)<1;
+        }),true,'both navigation buttons stay inside the card, centered at its sides without covering text');
+      }
+      await page.setViewportSize({width:480,height:720});
+      const largeWordStyle = await page.addStyleTag({content:'.card-german { font-size:112px; }'});
+      await page.evaluate(async () => {
+        await loadFile(Object.keys(fileMap)[1]);
+        currentIndex = displayWords.reduce((longest,word,index) => word.german.length > displayWords[longest].german.length ? index : longest, 0);
+        renderCard();
+      });
+      await page.waitForFunction(()=>{const word=document.getElementById('cardGerman');return word.scrollWidth<=word.clientWidth+1 && getComputedStyle(word).whiteSpace==='nowrap';});
+      const narrowWordSize = await page.locator('#cardGerman').evaluate(el=>parseFloat(getComputedStyle(el).fontSize));
+      await page.setViewportSize({width:1280,height:720});
+      await page.waitForFunction(size=>parseFloat(getComputedStyle(document.getElementById('cardGerman')).fontSize)>size+1,narrowWordSize);
+      await largeWordStyle.evaluate(el=>el.remove());
+      assert.equal(await page.evaluate(()=>{
+        const body=document.querySelector('.card-body'),button=document.getElementById('btnNextCard');
+        document.getElementById('exampleArea').style.display='';
+        document.getElementById('cardExample').textContent='Long imported example. '.repeat(1000);
+        body.scrollTop=0;
+        const before=button.getBoundingClientRect().top;
+        const beginning=document.getElementById('germanArea').getBoundingClientRect().top>=body.getBoundingClientRect().top;
+        body.scrollTop=body.scrollHeight;
+        const result=beginning && body.scrollTop>0 && button.getBoundingClientRect().top===before
+          && document.getElementById('clickHint').getBoundingClientRect().bottom<=body.getBoundingClientRect().bottom;
+        renderCard();body.scrollTop=0;
+        return result;
+      }),true,'long card content scrolls from beginning to end while side buttons remain fixed');
+      await page.setViewportSize({width:1280,height:720});
       await page.evaluate(async () => {
         await loadFile(Object.keys(fileMap)[0]);
         document.getElementById('modeSelect').value = 'test-zh';
@@ -215,7 +268,8 @@ process.chdir(path.resolve(__dirname,'..'));
         return retained && currentFileName===names[1];
       }),true,'failed or obsolete mixed-book reads preserve the successful selection');
       await page.locator('input[webkitdirectory]').setInputFiles(path.resolve(words));
-      assert.equal(await page.evaluate(()=>currentFileWords.length===0 && currentAudio===null && autoPlayTimer===null),true,'replacing a library clears old study data and cancels playback');
+      await page.waitForFunction(()=>currentFileWords.length===65);
+      assert.equal(await page.evaluate(()=>currentFileWords.every(word=>word.sourceBook===currentFileName)),true,'replacing session imports selects the new file and cancels the old read');
       assert.equal(await page.evaluate(()=>{
         const files=['left','right'].map(root=>{
           const file=new File(['fixture'],'lernen.mp3');
@@ -226,12 +280,51 @@ process.chdir(path.resolve(__dirname,'..'));
         buildAudioIndex([...files,...books]);
         return ['left','right'].every((root,index)=>findAudioFile({german:'lernen',pronounce:'words/einheit1/lernen.mp3',sourceRoot:'import/'+root})===files[index]);
       }),true,'same-name imported recordings stay within the matching source folder');
-      await page.evaluate(async () => { await loadFile(Object.keys(fileMap)[0]); switchView('card'); currentIndex=0; updateUI(); });
+      await page.evaluate(async () => { buildAudioIndex(library.files()); await loadFile(Object.keys(fileMap)[0]); switchView('card'); currentIndex=0; updateUI(); });
       assert.equal(await page.locator('#btnPrevCard').isDisabled(),true);
       await page.locator('#btnNextCard').click();
       assert.equal(await page.evaluate(()=>currentIndex),1);
       await page.locator('#btnPrevCard').click();
       assert.equal(await page.evaluate(()=>currentIndex),0);
+      await page.keyboard.press('ArrowRight');
+      assert.equal(await page.evaluate(()=>currentIndex),1,'shortcuts work immediately after clicking navigation');
+      await page.locator('#btnShuffle').click();
+      await page.keyboard.press('ArrowRight');
+      assert.equal(await page.evaluate(()=>currentIndex),1,'shortcuts work immediately after clicking shuffle');
+      await page.locator('#btnShuffle').click();
+      await page.locator('#modeSelect').dispatchEvent('pointerdown',{pointerType:'mouse'});
+      await page.locator('#modeSelect').selectOption('test-de');
+      await page.keyboard.press('q');
+      assert.equal(await page.evaluate(()=>isRevealed),true,'pointer mode selection returns keyboard shortcuts to study');
+      await page.locator('#modeSelect').focus();
+      await page.keyboard.press('ArrowUp');
+      assert.equal(await page.locator('#modeSelect').evaluate(el=>document.activeElement===el),true,'keyboard mode selection keeps native control focus');
+      await page.locator('#wordSearch').fill('lernen');
+      await page.keyboard.press('q');
+      assert.equal(await page.locator('#wordSearch').inputValue(),'lernenq','typing in search must not invoke study shortcuts');
+      await page.keyboard.press('Backspace');
+      await page.keyboard.press('Enter');
+      assert.equal(await page.evaluate(()=>document.activeElement.tagName),'MAIN','Enter finishes search and restores study focus');
+      await page.locator('#wordSearch').fill('');
+      await page.evaluate(()=>{document.getElementById('modeSelect').value='normal';changeMode();});
+      await page.evaluate(()=>{pauseStudyAudio();window.sliderPlays=0;window.sliderOriginalPlay=playPronounce;playPronounce=()=>sliderPlays++;});
+      const slider = await page.locator('#studyProgress').boundingBox();
+      await page.mouse.move(slider.x + slider.width * .25, slider.y + slider.height / 2);
+      await page.mouse.down();
+      for (const ratio of [.4,.6,.8]) {
+        await page.mouse.move(slider.x + slider.width * ratio, slider.y + slider.height / 2, {steps:3});
+        await page.waitForTimeout(180);
+        assert.equal(await page.evaluate(()=>sliderPlays===0 && autoPlayTimer===null && currentAudio===null),true,'holding the slider previews silently');
+        assert.equal(await page.locator('#cardChinese').innerText(),await page.evaluate(()=>displayWords[currentIndex].chinese),'the target card is visible before release');
+      }
+      assert.equal(await page.evaluate(()=>currentIndex>40 && currentIndex<60),true);
+      await page.mouse.up();
+      await page.waitForTimeout(180);
+      assert.equal(await page.evaluate(()=>sliderPlays),1,'release plays only the final word');
+      const sliderIndex = await page.evaluate(()=>currentIndex);
+      await page.keyboard.press('ArrowLeft');
+      assert.equal(await page.evaluate(()=>currentIndex),sliderIndex-1,'shortcuts work immediately after releasing the slider');
+      await page.evaluate(()=>{playPronounce=window.sliderOriginalPlay;});
       await page.evaluate(()=>{currentIndex=displayWords.length-1;updateUI();});
       assert.equal(await page.locator('#btnNextCard').isDisabled(),true);
       await page.evaluate(()=>{switchView('list');prevCard();});
@@ -242,6 +335,7 @@ process.chdir(path.resolve(__dirname,'..'));
         document.getElementById('openFeedback').hidden = false; // Test the form with a mock native transport.
       });
       await page.locator('#openFeedback').click();
+      assert.equal(await page.locator('#feedbackDescription').innerText(), '请勿填写密码等敏感信息。', 'feedback description stays concise');
       assert.equal(await page.evaluate(()=>feedbackCalls.length),0);
       await page.locator('#feedbackMessage').fill('  test feedback <b>literal</b>  ');
       await page.locator('#feedbackSubmit').click();
@@ -254,6 +348,7 @@ process.chdir(path.resolve(__dirname,'..'));
       assert.equal(await page.locator('#feedbackMessage').inputValue(),'');
       assert.deepEqual(await page.evaluate(()=>feedbackCalls),['test feedback <b>literal</b>','test feedback <b>literal</b>']);
       await page.locator('#feedbackCancel').click();
+      assert.equal(await page.evaluate(()=>document.activeElement.tagName),'MAIN','closing feedback restores study focus');
       await page.evaluate(()=>{window.testFonts=[...document.querySelectorAll('h1,h2,p,span,select,input,button,textarea')]
         .filter(el=>!el.matches('.nav-btn,.star-mark,.pronounce-icon,.icon-button'))
         .map(el=>[el,parseFloat(getComputedStyle(el).fontSize)]);});

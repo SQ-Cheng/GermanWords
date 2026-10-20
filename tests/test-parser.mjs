@@ -11,11 +11,11 @@ const context = vm.createContext({TextDecoder, Uint8Array, DataView, Blob, Respo
 const parser = vm.runInContext(fs.readFileSync(path.join(root, 'shared/parser.js'), 'utf8') + '\nWordParser;', context);
 const plain = value => JSON.parse(JSON.stringify(value));
 const counts = [65, 54, 65, 71, 58, 60, 40, 47];
-const books = fs.readdirSync(path.join(root, 'shared/words')).filter(name => name.endsWith('.xlsx')).sort();
+const books = fs.readdirSync(path.join(root, 'shared/words/german1')).filter(name => name.endsWith('.xlsx')).sort();
 assert.equal(books.length, counts.length);
 let total = 0;
 for (const [index, name] of books.entries()) {
-  const bytes = fs.readFileSync(path.join(root, 'shared/words', name));
+  const bytes = fs.readFileSync(path.join(root, 'shared/words/german1', name));
   const file = {arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)};
   const browser = parser.parseSheets(await parser.read(file));
   const native = parser.parseSheets(await parser.read(file, data => inflateRawSync(data)));
@@ -23,6 +23,21 @@ for (const [index, name] of books.entries()) {
   assert.equal(browser.words.length, counts[index], name);
   assert.equal(browser.warnings.length, 0, name);
   total += browser.words.length;
+}
+
+const secondCourse = {'E1 单词汇总.xlsx':37, 'E2 单词汇总.xlsx':30, 'E3 单词汇总.xlsx':60,
+  'E4 单词汇总.xlsx':46, 'E5 单词汇总.xlsx':34, 'E6 单词汇总.xlsx':21,
+  'E9 单词汇总.xlsx':44, 'E10 单词汇总.xlsx':48, '虚词大盘点2.xlsx':61};
+assert.deepEqual(fs.readdirSync(path.join(root,'shared/words/german2')).sort(), Object.keys(secondCourse).sort());
+for (const [name, count] of Object.entries(secondCourse)) {
+  const bytes = fs.readFileSync(path.join(root,'shared/words/german2',name));
+  const file = {arrayBuffer:async () => bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength)};
+  const browser = parser.parseSheets(await parser.read(file));
+  const native = parser.parseSheets(await parser.read(file,data => inflateRawSync(data)));
+  assert.deepEqual(plain(browser),plain(native),name);
+  assert.equal(browser.words.length,count,name);
+  assert.equal(browser.warnings.length,0,name);
+  assert.equal(browser.words.every(word => !word.example && !word.pronounce),true);
 }
 
 // Reordered headers after a title, a blank row, multiple sheets and literal text.

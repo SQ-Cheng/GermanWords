@@ -2,8 +2,9 @@
   "name": "germanwords-tests",
   "private": true,
   "scripts": {
-    "test": "node test-parser.mjs && node test-engine.mjs && node test-theme.mjs && node test-playback.mjs && node test-vocabulary.mjs && node test-marks.mjs && node test-desktop.mjs",
-    "test:browser": "node browser.cjs"
+    "test": "node test-parser.mjs && node test-library.mjs && node test-engine.mjs && node test-theme.mjs && node test-playback.mjs && node test-vocabulary.mjs && node test-marks.mjs && node test-desktop.mjs",
+    "test:browser": "node browser.cjs",
+    "test:web": "python test_web_bundle.py && node web.cjs"
   },
   "devDependencies": {
     "playwright": "1.62.1"

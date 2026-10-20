@@ -5,7 +5,7 @@
   "identifier": "cn.study.germanwords",
   "build": {
     "frontendDist": "../../../output/windows/web",
-    "additionalWatchFolders": ["../frontend", "../../../shared"]
+    "additionalWatchFolders": ["../frontend", "../../web", "../../../shared"]
   },
   "app": {
     "withGlobalTauri": true,

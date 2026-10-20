@@ -11,7 +11,7 @@ pnpm --dir apps/windows install --frozen-lockfile
 pnpm --dir apps/windows dev
 ```
 
-开发模式与正式包使用同一本地资源协议。Tauri 监听 `frontend/` 与 `shared/`；修改后由 Rust 构建钩子重新准备资源并重启窗口，偏好仍保存在原 WebView2 profile。无需额外开发服务器或手动复制生成目录。
+开发模式与正式包使用同一本地资源协议。Tauri 监听 `frontend/`、`../web/` 与 `shared/`；修改后由 Rust 构建钩子重新准备资源并重启窗口，偏好仍保存在原 WebView2 profile。无需额外开发服务器或手动复制生成目录。
 
 构建配置中的 `0.0.0` 仅为占位符；以上入口先执行 `tools/build-windows.py`，从 `shared/app-config.json` 生成忽略的 `tauri.generated.json`，再传给 Tauri。构建钩子也会准备资源，确保源码修改进入原生包。版本配置修改后重新运行开发入口；不要绕过入口直接运行 `cargo run` 或裸 `tauri build`。
 
@@ -19,14 +19,15 @@ pnpm --dir apps/windows dev
 
 ## 目录边界
 
-- `frontend/`：唯一一套 Windows 界面与学习逻辑；`desktop.js` 只处理内置资源、桌面更新交互和备份。
+- `../web/`：Windows 与浏览器共用的一套桌面界面、学习逻辑与备份校验。
+- `frontend/`：`desktop.js` 处理内置资源、原生更新与反馈；`update-dialog.html` 只提供 Windows 更新对话框，由构建工具装入共用页面。
 - `src-tauri/`：本地窗口、官方更新插件、安装器及受限 IPC。原生层不解析 Excel、不实现学习规则。
 - `../../shared/`：共享规则和资源，不依赖 Tauri。
 - `../../output/windows/web/`：生成的自包含前端，不提交；同样供浏览器回归使用。
 
 WebView2 数据目录由固定应用 identifier `cn.study.germanwords` 管理，更新安装文件不清理用户数据。前端不加载远程页面，不开放通用 shell 或文件系统命令；更新请求由原生插件执行，本地页面 CSP 不允许外部网络或内联脚本。
 
-内置词库自动载入；自定义词表 / 音频沿用原 Windows 的文件选择与会话导入方式，重开应用后需要重新选择，不在此次迁移中另加文件管理系统。
+内置词库自动载入，在「词库与设置 → 课程」选择德语（1）或德语（2），记住课程选择。自定义词表 / 音频沿用会话导入方式，新一批导入替换上一批，重开应用后需要重新选择；切换课程不会清除或隐藏导入内容。两门课程分别保存内置词表星标，导入词表的星标全局有效。德语（2）按所提供的 9 份词表收录，暂不含 E7/E8、例句与录音，可自行导入录音。备份包含课程选择；旧备份缺少课程时恢复为德语（1）。
 
 ## 安装与更新
 

@@ -21,14 +21,15 @@ button:disabled{opacity:.3;cursor:default}button:active:not(:disabled){transform
 .study-tools .active{background:var(--surface-soft);color:var(--primary-color)}
 #app-container{flex:1;min-height:0;display:flex;flex-direction:column}
 .card-wrapper{flex:1;flex-direction:column;min-height:0}
-.card{flex:1;min-height:0;position:relative;border-radius:24px;padding:16px 24px;text-align:center;overflow:hidden;border:1px solid var(--border);box-shadow:0 5px 20px var(--shadow);display:flex;flex-direction:column;align-items:center}
+.card{flex:1;min-height:0;position:relative;border-radius:24px;padding:16px 8px;text-align:center;overflow:hidden;border:1px solid var(--border);box-shadow:0 5px 20px var(--shadow);display:grid;grid-template-columns:44px minmax(0,1fr) 44px;grid-template-rows:minmax(0,1fr);column-gap:6px;align-items:center}
 .bg-other{background:var(--color-other)}.bg-der{background:var(--color-der)}.bg-die{background:var(--color-die)}.bg-das{background:var(--color-das)}
 .card-topline{position:absolute;top:14px;right:14px;z-index:1}
 .star-mark{width:46px;height:46px;min-width:46px;min-height:46px;padding:0;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:50%;font-size:22px;line-height:1;color:var(--muted);background:var(--glass)}
 .marked .star-mark{background:var(--mark-bg);color:var(--mark);border-color:var(--mark)}
 .card-content-area{width:100%;flex-shrink:0}
-.card-german{font-size:clamp(30px,8vw,48px);font-weight:550;line-height:1.25;overflow-wrap:anywhere;padding:8px 0}
+.card-german{max-width:100%;white-space:nowrap;font-size:clamp(30px,8vw,48px);font-weight:550;line-height:1.25;padding:8px 0}
 .article-hint{font-size:.5em;font-weight:400;margin-right:10px;color:var(--muted)}
+.article-stacked .article-hint{display:block;margin-right:0}
 .pronounce-icon{display:inline-flex;justify-content:center;align-items:center;width:46px;height:46px;min-width:46px;min-height:46px;padding:0;background:var(--glass);border:1px solid var(--border);font-size:21px;line-height:1;border-radius:50%;margin:4px 0 10px;flex-shrink:0}
 .card-chinese{font-size:20px;line-height:1.4;margin-bottom:8px;color:var(--ink);overflow-wrap:anywhere}
 .card-tags{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
@@ -41,11 +42,6 @@ button:disabled{opacity:.3;cursor:default}button:active:not(:disabled){transform
 .swipe-hint{font-size:12px;color:var(--muted)}
 .study-position{display:flex;justify-content:space-between;gap:8px}
 .study-footer{padding-top:6px;display:flex;flex-direction:column;gap:0;flex-shrink:0}
-#studyProgress{--progress:0%;appearance:none;-webkit-appearance:none;width:100%;height:44px;min-height:44px;margin:0;background:transparent;cursor:pointer;flex-shrink:0;touch-action:pan-x}
-#studyProgress::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:linear-gradient(to right,var(--primary-color) var(--progress),var(--border) var(--progress))}
-#studyProgress::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--primary-color);border:2px solid var(--surface);margin-top:-7px}
-#studyProgress:focus-visible{outline:3px solid var(--focus);outline-offset:0;border-radius:8px}
-#studyProgress:disabled{opacity:.4;cursor:default}
 .empty-state{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:8px}
 .empty-state h3{font-size:19px}
 .notice{position:fixed;bottom:22px;left:20px;right:20px;z-index:100;display:flex;flex-direction:column;gap:8px;pointer-events:none;max-height:45vh;overflow-y:auto}
@@ -84,10 +80,10 @@ td:nth-child(5){grid-column:1 / -1;font-size:14px;line-height:1.65;color:var(--m
 .list-answer{grid-column:1 / -1}
 .list-answer button{font-size:14px;padding:8px 0;color:var(--primary-color);text-align:left}
 tr.marked{border-color:var(--mark)}
-.card-body{flex:1;min-height:0;width:100%;padding-top:36px;overflow-y:auto;display:flex;flex-direction:column;overscroll-behavior:contain;touch-action:pan-y}
+.card-body{grid-column:2;grid-row:1;height:100%;min-width:0;min-height:0;width:100%;padding-top:36px;overflow-y:auto;display:flex;flex-direction:column;overscroll-behavior:contain;touch-action:pan-y}
 .card-details{margin:auto 0}
 @media(max-width:380px){
-  .main-content{padding:12px 16px}.card{padding:12px 16px}
+  .main-content{padding:12px 16px}.card{padding:12px 6px;column-gap:2px}
   .study-tools{gap:2px}.study-tools button{padding:8px}
 }
 @media(min-width:760px){
@@ -118,6 +114,5 @@ tr.marked{border-color:var(--mark)}
 .file-item input{order:-1;width:22px;height:22px;flex-shrink:0;accent-color:var(--primary-color)}
 .mix-button{flex-shrink:0;background:var(--surface-soft);color:var(--primary-color);font-size:14px;margin-bottom:8px}
 
-.study-navigation{display:flex;align-items:center;gap:12px}
-.study-navigation .nav-btn{touch-action:manipulation;display:flex;align-items:center;justify-content:center;flex:0 0 44px;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border-radius:50%;background:var(--surface-soft);line-height:1}
-.study-navigation #studyProgress{flex:1;min-width:0;width:0}
+.card .nav-btn{grid-row:1;touch-action:manipulation;display:flex;align-items:center;justify-content:center;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border-radius:50%;background:var(--surface-soft);line-height:1}
+#btnPrevCard{grid-column:1}#btnNextCard{grid-column:3}
