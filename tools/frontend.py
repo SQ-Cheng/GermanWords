@@ -19,6 +19,7 @@ def prepare(platform):
     html = (client / 'index.html').read_text(encoding='utf-8')
     html = html.replace('<title>德语单词</title>', '<title>德语单词 ' + config['versionName'] + '</title>')
     html = html.replace('<span id="appVersion"></span>', '<span id="appVersion"> · ' + config['versionName'] + '</span>')
+    html = html.replace('<!-- built-in library -->', '<script src="library-data.js"></script>')
     if platform == 'windows':
         native = ROOT / 'apps/windows/frontend'
         html = html.replace('<!-- platform-styles -->', '<link rel="stylesheet" href="../../shared/feedback.css">')
@@ -26,7 +27,6 @@ def prepare(platform):
         html = html.replace('<script src="browser.js"></script>', '<script src="../../shared/feedback.js"></script><script src="desktop.js"></script>')
         shutil.copy2(native / 'desktop.js', output)
     else:
-        html = html.replace('<!-- built-in library -->', '<script src="library-data.js"></script>')
         shutil.copy2(client / 'browser.js', output)
     for name in ['app.js', 'app.css', 'backup.js']:
         shutil.copy2(client / name, output)

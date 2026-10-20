@@ -9,7 +9,7 @@ output, config, manifest = prepare('browser')
 for item in manifest:
     if item['path'].lower().endswith('.xlsx'):
         item['data'] = base64.b64encode((output / item['path']).read_bytes()).decode('ascii')
-(output / 'library-data.js').write_text('const BrowserLibrary = ' + json.dumps(manifest, ensure_ascii=True, separators=(',', ':')) + ';\n', encoding='utf-8', newline='\n')
+(output / 'library-data.js').write_text('const BuiltInLibrary = ' + json.dumps(manifest, ensure_ascii=True, separators=(',', ':')) + ';\n', encoding='utf-8', newline='\n')
 shutil.copy2(ROOT / 'apps/web/README.md', output / 'README.md')
 archive = output.parent / ('GermanWords-Web-' + config['versionName'] + '.zip')
 with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as bundle:

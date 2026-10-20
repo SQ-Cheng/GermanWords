@@ -6,7 +6,7 @@ document.getElementById('openFeedback').hidden = false;
 document.getElementById('openFeedback').onclick = () => window.open('https://github.com/SQ-Cheng/GermanWords/issues/new', '_blank', 'noopener,noreferrer');
 
 (async () => {
-  if (typeof BrowserLibrary === 'undefined') return; // Source preview supports manual import.
+  if (typeof BuiltInLibrary === 'undefined') return; // Source preview supports manual import.
   try {
     new DecompressionStream('deflate-raw');
   } catch (_) {
@@ -14,12 +14,11 @@ document.getElementById('openFeedback').onclick = () => window.open('https://git
     return;
   }
   try {
-    const files = BrowserLibrary.map(item => ({
+    const files = BuiltInLibrary.map(item => ({
       name:item.name, webkitRelativePath:item.path,
       packagedUrl:new URL(item.path.split('/').map(encodeURIComponent).join('/'), location.href).href,
       async arrayBuffer() { return Uint8Array.from(atob(item.data), character => character.charCodeAt(0)).buffer; }
     }));
-    handleFiles(files);
-    await loadFile(Object.keys(fileMap)[0]);
+    await loadBuiltInFiles(files);
   } catch (_) { notify('内置词库无法读取，请完整解压后重新打开。', 'error'); }
 })();

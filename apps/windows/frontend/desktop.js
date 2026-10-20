@@ -43,13 +43,8 @@ const Desktop = (function () {
   }
   async function loadBuiltIn() {
     if (!native) return;
-    const sequence = loadSequence;
     try {
-      const response = await fetch('library.json');
-      if (!response.ok) throw new Error('内置词库索引无法读取');
-      const manifest = await response.json();
-      if (sequence !== loadSequence) return;
-      const files = manifest.map(item => ({
+      const files = BuiltInLibrary.map(item => ({
         name: item.name, webkitRelativePath: item.path,
         packagedUrl: new URL(item.path.split('/').map(encodeURIComponent).join('/'), location.href).href,
         async arrayBuffer() {
@@ -58,9 +53,8 @@ const Desktop = (function () {
           return data.arrayBuffer();
         }
       }));
-      handleFiles(files);
-      await loadFile(Object.keys(fileMap)[0]);
-    } catch (error) { if (sequence === loadSequence) notify('载入词库失败：' + error.message, 'error'); }
+      await loadBuiltInFiles(files);
+    } catch (error) { notify('载入词库失败：' + error.message, 'error'); }
   }
   if (native) {
     document.getElementById('openFeedback').hidden = false;

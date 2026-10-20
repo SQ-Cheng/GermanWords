@@ -146,5 +146,5 @@ const WordAudio = (function () {
     return index !== audioIndex ? find(word, fallback, fallback) : null;
   }
 
-  return {build, find};
+  return {build, find, isAudio:file => AUDIO_EXT.test(file.name)};
 })();

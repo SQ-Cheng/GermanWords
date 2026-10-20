@@ -41,6 +41,14 @@ function notify(message, kind) {
 }
 
 const store = MarkStore.create(() => notify('浏览器不允许保存进度，本次星标在关闭页面后会丢失。', 'warn'));
+const library = StudyLibrary.create();
+for (const course of StudyLibrary.courses) {
+  const option = document.createElement('option');
+  option.value = course.id; option.textContent = course.name;
+  document.getElementById('courseSelect').appendChild(option);
+}
+document.getElementById('courseSelect').value = library.current().id;
+document.getElementById('courseSelect').onchange = event => changeCourse(event.target.value);
 
 // === 绑定事件 ===
 document
@@ -70,7 +78,7 @@ function buildAudioIndex(files) {
 function findAudioFile(word) { return WordAudio.find(word, audioIndex); }
 
 function hasAudio(word) {
-  return !!(word.pronounce || findAudioFile(word));
+  return !!findAudioFile(word);
 }
 
 function audioSource(word) {
@@ -79,10 +87,6 @@ function audioSource(word) {
   if (file) {
     if (!blobUrls.has(file)) blobUrls.set(file, URL.createObjectURL(file));
     return { url: blobUrls.get(file), label: file.name };
-  }
-  // 没有拿到文件夹里的文件时，退回按相对路径播放（HTML 与 words 同级时可用）
-  if (word.pronounce) {
-    return { url: String(word.pronounce), label: String(word.pronounce) };
   }
   return null;
 }
@@ -140,86 +144,86 @@ function changePlaybackRate(value) {
 changePlaybackRate(Playback.getRate());
 
 // === 核心逻辑 ===
-function handleFiles(files) {
-  ++loadSequence;
+async function handleFiles(files) {
   const all = Array.from(files);
-  buildAudioIndex(all);
+  if (!all.some(file => /\.xlsx$/i.test(file.name) || WordAudio.isAudio(file))) {
+    notify('没有找到 .xlsx 词表或音频文件', 'warn');
+    return;
+  }
+  const previous = currentBookNames.slice();
+  library.setImported(all);
+  refreshLibrary();
+  if (all.some(file => /\.xls$/i.test(file.name))) notify('已忽略旧版 .xls 文件，请另存为 .xlsx。', 'warn');
+  const first = library.entries().find(entry => entry.imported);
+  const chosen = first ? [first.key] : previous.filter(name => fileMap[name]);
+  return loadBooks(chosen.length ? chosen : Object.keys(fileMap).slice(0, 1));
+}
+
+function refreshLibrary() {
+  ++loadSequence;
+  buildAudioIndex(library.files());
   currentFileWords = [];
   orderedWords = [];
   displayWords = [];
   currentFileName = '';
   currentBookNames = [];
   currentIndex = 0;
-  updateUI();
-
-  const bookFiles = all
-    .filter(function (f) {
-      return /\.xlsx$/i.test(f.name);
-    })
-    .sort(function (a, b) {
-      // 按文件名里的第一个数字排（E1…E7），没有数字的（虚词大盘点）放最后
-      const na = (a.name.match(/[0-9]+/) || [Number.MAX_SAFE_INTEGER])[0];
-      const nb = (b.name.match(/[0-9]+/) || [Number.MAX_SAFE_INTEGER])[0];
-      if (na !== nb) return Number(na) - Number(nb);
-      return a.name.localeCompare(b.name, "zh");
-    });
-  const legacy = all.filter(function (f) {
-    return /\.xls$/i.test(f.name);
-  });
-
   fileMap = Object.create(null);
-  const fileListEl = document.getElementById("fileList");
-  fileListEl.innerHTML = "";
-  for (const file of bookFiles) {
-    let key = file.name;
-    if (fileMap[key]) key = file.name + " · " + (file.webkitRelativePath || "导入词表");
+  const list = document.getElementById('fileList');
+  list.innerHTML = '';
+  const entries = library.entries();
+  let group = null;
+  for (const entry of entries) {
+    if (entry.imported !== group) {
+      group = entry.imported;
+      const heading = document.createElement('li');
+      heading.className = 'library-group';
+      heading.textContent = group ? '我的词表（通用）' : '内置词表';
+      list.appendChild(heading);
+    }
+    const {key, file} = entry;
     fileMap[key] = file;
-    const li = document.createElement("li");
-    li.className = "file-item";
+    const li = document.createElement('li');
+    li.className = 'file-item';
     li.dataset.fileName = key;
-    li.textContent = key;
-    li.onclick = function () {
-      loadFile(key);
-    };
+    li.dataset.imported = String(entry.imported);
+    li.title = entry.imported ? key : file.name;
+    const label = StudyLibrary.title(file) + (entry.imported ? key.slice(file.name.length) : '');
+    const button = document.createElement('button');
+    button.type = 'button'; button.className = 'book-name';
+    button.textContent = label;
+    li.appendChild(button);
+    li.onclick = () => loadFile(key);
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.value = key;
-    checkbox.setAttribute('aria-label', '选择 ' + key + ' 用于混合学习');
+    checkbox.setAttribute('aria-label', '选择 ' + label + ' 用于混合学习');
     checkbox.onclick = event => event.stopPropagation();
     checkbox.onchange = updateMixSelection;
     li.appendChild(checkbox);
-    fileListEl.appendChild(li);
+    list.appendChild(li);
   }
-
+  const custom = entries.filter(entry => entry.imported).length;
+  document.getElementById('sidebarStatus').textContent = (entries.length - custom) + ' 份内置词表' + (custom ? ' · ' + custom + ' 份导入' : '');
+  document.getElementById('courseSelect').value = library.current().id;
   updateMixSelection();
+  updateUI();
+}
 
-  if (bookFiles.length === 0) {
-    fileListEl.innerHTML =
-      '<li style="padding:20px;text-align:center;color:#d32f2f;">没找到 .xlsx 词表<br>请选中包含 words 的整个文件夹</li>';
-    notify(
-      "没找到 .xlsx 词表。请点「导入文件夹」，选中装有 words 的那个文件夹。",
-      "error"
-    );
-    return;
-  }
-  if (legacy.length) {
-    notify(
-      "已忽略 " +
-        legacy.length +
-        " 个旧版 .xls 文件：只支持 .xlsx，请在 Excel/WPS 里另存为 .xlsx。",
-      "warn"
-    );
-  }
-  // 导入结果写在侧边栏底部，不再弹提示条（每次都弹太吵）
-  const statusEl = document.getElementById("sidebarStatus");
-  if (statusEl) {
-    statusEl.textContent =
-      "已导入 " +
-      bookFiles.length +
-      " 个词表 · " +
-      Math.max(0, all.length - bookFiles.length - legacy.length) +
-      " 个音频文件";
-  }
+async function changeCourse(value) {
+  library.select(value);
+  searchQuery = '';
+  document.getElementById('wordSearch').value = '';
+  isFilterActive = false;
+  document.getElementById('btnFilter').classList.remove('active');
+  refreshLibrary();
+  await loadFile(Object.keys(fileMap)[0]);
+}
+
+async function loadBuiltInFiles(files) {
+  library.setBuiltIn(files);
+  refreshLibrary();
+  await loadFile(Object.keys(fileMap)[0]);
 }
 
 function updateMixSelection() {
@@ -397,7 +401,8 @@ function updateNav() {
 }
 
 function updateUI() {
-  document.getElementById('lessonTitle').textContent = currentBookNames.length > 1 ? '混合学习' : currentFileName.replace(/_单词汇总\.xlsx$/i, '').replace(/\.xlsx$/i, '') || '德语单词';
+  document.getElementById('lessonTitle').textContent = currentBookNames.length > 1 ? '混合学习' : fileMap[currentFileName] ? StudyLibrary.title(fileMap[currentFileName]) : '德语单词';
+  document.getElementById('courseName').textContent = currentBookNames.length && currentBookNames.every(name => !fileMap[name].course) ? '我的词表' : library.current().name;
   document.getElementById('lessonCount').textContent = currentFileWords.length ? currentFileWords.length + ' 词' : '离线学习';
   const markedCount = currentFileWords.filter((w) => w.marked).length;
   document.getElementById(

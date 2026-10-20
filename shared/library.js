@@ -7,8 +7,8 @@ const StudyLibrary = (() => {
   const storageKey = 'german_course_v1';
   const isBook = file => /\.xlsx$/i.test(file.name);
   function compare(a, b) {
-    const number = file => Number((file.name.match(/\d+/) || [Number.MAX_SAFE_INTEGER])[0]);
-    return number(a) - number(b) || a.name.localeCompare(b.name, 'zh');
+    const number = file => Number((file.name.match(/^E(\d+)(?:[ _.]|$)/i) || [])[1] || Number.MAX_SAFE_INTEGER);
+    return number(a) - number(b) || a.name.localeCompare(b.name, 'zh', {numeric:true});
   }
   function title(file) { return file.name.replace(/[ _]单词汇总\.xlsx$/i, '').replace(/\.xlsx$/i, ''); }
   function create() {

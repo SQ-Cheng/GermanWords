@@ -88,6 +88,7 @@ function toggleAutoPlay() {
 }
 function saveStudy() {
   if (restoring) return;
+  preferences.course = library.current().id;
   preferences.file = currentFileName;
   preferences.files = currentBookNames;
   preferences.mode = currentMode;
@@ -105,7 +106,8 @@ function saveStudy() {
   catch (_) { notify('手机存储不足，无法保存学习进度', 'error'); }
 }
 function paintStudy() {
-  const title = currentBookNames.length > 1 ? '混合学习' : currentFileName ? currentFileName.replace(/_单词汇总\.xlsx$/i, '').replace(/\.xlsx$/i, '') : '选择一份词表';
+  const title = currentBookNames.length > 1 ? '混合学习' : fileMap[currentFileName] ? StudyLibrary.title(fileMap[currentFileName]) : '选择一份词表';
+  document.getElementById('courseName').textContent = currentBookNames.length && currentBookNames.every(name => !fileMap[name].course) ? '我的词表' : library.current().name;
   document.getElementById('lessonTitle').textContent = title;
   document.getElementById('lessonCount').textContent = (currentBookNames.length > 1 ? currentBookNames.length + ' 单元 · ' : '') + currentFileWords.length + ' 词';
   const summary = document.getElementById('searchSummary');
@@ -201,8 +203,10 @@ function restoreBackup(raw) {
     }
     if (data.theme !== undefined && !['auto','light','dark'].includes(data.theme)) throw new Error('主题格式不正确');
     if (data.rate !== undefined && ![0.75,1,1.25,1.5].includes(data.rate)) throw new Error('语速格式不正确');
+    if (data.preferences && data.preferences.course !== undefined && !StudyLibrary.courses.some(course => course.id === data.preferences.course)) throw new Error('课程格式不正确');
     store.replaceAll(safeMarks);
     if (data.preferences && typeof data.preferences === 'object' && !Array.isArray(data.preferences)) {
+      library.select(data.preferences.course || 'german1');
       preferences = normalizePreferences(data.preferences);
       localStorage.setItem(PREF_KEY, JSON.stringify(preferences));
     }
@@ -215,6 +219,8 @@ function restoreBackup(raw) {
 }
 function applyPreferences() {
   preferences = normalizePreferences(preferences);
+  if (preferences.course) library.select(preferences.course);
+  document.getElementById('courseSelect').value = library.current().id;
   currentMode = ['normal','test-zh','test-de'].includes(preferences.mode) ? preferences.mode : 'normal';
   currentView = preferences.view === 'list' ? 'list' : 'card';
   isFilterActive = preferences.filter === true;
@@ -237,7 +243,9 @@ async function reloadLibrary(selectImported) {
         return response.arrayBuffer();
       }
     }));
-    handleFiles(files);
+    library.setBuiltIn(files.filter(file => !file.imported));
+    library.setImported(files.filter(file => file.imported));
+    refreshLibrary();
     const names = Object.keys(fileMap);
     const newestBook = selectImported && files.filter(file => file.imported && /\.xlsx$/i.test(file.name)).pop();
     const imported = newestBook && names.find(name => fileMap[name].url === newestBook.url);

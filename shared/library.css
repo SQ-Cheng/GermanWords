@@ -1,0 +1,8 @@
+.course-setting{display:flex;align-items:center;gap:12px;margin:0 0 14px;flex-shrink:0;color:var(--muted);font-size:14px}
+.course-setting select{flex:1;min-width:0;width:0;min-height:44px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface-soft);color:var(--primary-color);font:inherit;font-weight:600}
+.library-group{margin:14px 0 6px;padding:0 8px;font-size:12px;font-weight:600;color:var(--muted);list-style:none;letter-spacing:.04em}
+.file-list .file-item{display:flex;align-items:center;gap:10px}
+.file-item input{order:-1;flex:0 0 auto;width:19px;height:19px;accent-color:var(--primary-color)}
+.file-item .book-name{flex:1;min-width:0;min-height:0;text-align:left;background:none;border:0;padding:0;color:inherit;font:inherit;line-height:inherit;overflow-wrap:anywhere}
+.course-caption{flex-basis:100%;font-size:12px;line-height:1.4;color:var(--muted);font-weight:500;margin:0 0 3px}
+.lesson-heading>div{row-gap:3px}

@@ -5,7 +5,7 @@ import zipfile
 from frontend import ROOT as root, prepare
 
 output, config, manifest = prepare('windows')
-(output / 'library.json').write_text(json.dumps(manifest, ensure_ascii=False), encoding='utf-8')
+(output / 'library-data.js').write_text('const BuiltInLibrary = ' + json.dumps(manifest, ensure_ascii=True) + ';\n', encoding='utf-8')
 # Existing file:// installations need the same HTML filename to export browser data.
 # Their old launcher/updater files stay in place when this compatibility ZIP is applied.
 with zipfile.ZipFile(output.parent / 'GermanWords-Legacy-Migration.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
