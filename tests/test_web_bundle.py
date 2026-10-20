@@ -44,11 +44,11 @@ class WebBundle(unittest.TestCase):
                 self.assertNotIn(native_only, html)
             self.assertFalse(any(Path(name).name in {'app-config.json', 'library.json', 'desktop.js', 'feedback.js'} for name in names))
             data = bundle.read('GermanWords/library-data.js').decode('utf-8')
-            manifest = json.loads(data.removeprefix('const BrowserLibrary = ').removesuffix(';\n'))
+            manifest = json.loads(data.removeprefix('const BuiltInLibrary = ').removesuffix(';\n'))
             expected = {p.relative_to(ROOT / 'shared').as_posix(): p for p in (ROOT / 'shared/words').rglob('*') if p.is_file()}
             self.assertEqual({item['path'] for item in manifest}, set(expected))
             books = [item for item in manifest if item['path'].lower().endswith('.xlsx')]
-            self.assertEqual(len(books), 8)
+            self.assertEqual(len(books), 17)
             self.assertEqual(sum(item['path'].endswith('.mp3') for item in manifest), 459)
             for item in manifest:
                 original = expected[item['path']].read_bytes()

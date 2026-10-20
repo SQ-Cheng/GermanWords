@@ -30,15 +30,16 @@ vm.runInContext(fs.readFileSync(path.join(root,'shared/playback.js'),'utf8'),con
 vm.runInContext(fs.readFileSync(path.join(root,'shared/vocabulary.js'),'utf8'),context);
 vm.runInContext(fs.readFileSync(path.join(root,'shared/audio.js'),'utf8'),context);
 vm.runInContext(fs.readFileSync(path.join(root,'shared/marks.js'),'utf8'),context);
+vm.runInContext(fs.readFileSync(path.join(root,'shared/library.js'),'utf8'),context);
 vm.runInContext(fs.readFileSync(path.join(web,'engine.js'),'utf8'),context);
 vm.runInContext(fs.readFileSync(path.join(web,'mobile.js'),'utf8').replace(/reloadLibrary\(\);\s*$/, ''),context);
 vm.runInContext('autoPlayEnabled=false;',context);
 const words=path.join(root,'shared/words');
 const files=fs.readdirSync(words,{recursive:true}).filter(name=>fs.statSync(path.join(words,name)).isFile()).map(name=>({name:path.basename(name),root:'built-in',webkitRelativePath:'words/'+name.replaceAll('\\','/'),url:'/assets/web/words/'+name.replaceAll('\\','/'),arrayBuffer:async()=>{const b=fs.readFileSync(path.join(words,name));return b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength);}}));
 context.files=files;
-vm.runInContext('handleFiles(files)',context);
+vm.runInContext('library.setBuiltIn(files);refreshLibrary()',context);
 let total=0, audio=0;
-for(const file of files.filter(f=>f.name.endsWith('.xlsx'))){
+for(const file of files.filter(f=>f.name.endsWith('.xlsx') && f.webkitRelativePath.startsWith('words/german1/'))){
   context.book=file.name;
   await vm.runInContext('loadFile(book)',context);
   const result=vm.runInContext('({count:currentFileWords.length,audio:currentFileWords.filter(w=>findAudioFile(w)).length,first:currentFileWords[0].german})',context);
@@ -169,7 +170,7 @@ assert.equal(vm.runInContext('WordParser.parseSheets(sheets).words[0].german',co
 context.importedAudio={name:'lernen.mp3',root:'import-test',webkitRelativePath:'import-test/einheit1/lernen.mp3',url:'/library/import-test/einheit1/lernen.mp3'};
 vm.runInContext('buildAudioIndex([...files,importedAudio])',context);
 assert.equal(vm.runInContext('findAudioFile({german:"lernen",pronounce:"words/einheit1/lernen.mp3",sourceRoot:"import-test"}).url',context),context.importedAudio.url);
-assert.equal(vm.runInContext('findAudioFile({german:"lernen",pronounce:"words/einheit1/lernen.mp3",sourceRoot:"built-in"}).url',context),'/assets/web/words/einheit1/lernen.mp3');
+assert.equal(vm.runInContext('findAudioFile({german:"lernen",pronounce:"words/einheit1/lernen.mp3",sourceRoot:"built-in"}).url',context),'/assets/web/words/german1/einheit1/lernen.mp3');
 context.Android.exportBackup = raw => { context.backup = JSON.parse(raw); };
 vm.runInContext("AppTheme.setMode('dark');changePlaybackRate(1.25);exportStudyBackup()",context);
 assert.equal(context.backup.theme,'dark');
@@ -186,3 +187,17 @@ const beforeRestore=vm.runInContext('JSON.stringify(store.readAll())',context);
 vm.runInContext('restoreBackup(JSON.stringify({version:1,marks:{invalid:["new"]},theme:"wrong",rate:1}))',context);
 assert.equal(vm.runInContext('JSON.stringify(store.readAll())',context),beforeRestore,'invalid settings must not replace stars');
 console.log(`PASS: ${total} words, ${audio} recordings; mixed study, audio, stale reads; backup restores theme/rate and supports old backups.`);
+
+await vm.runInContext("changeCourse('german2')",context);
+assert.equal(vm.runInContext('currentFileWords.length',context),37);
+await vm.runInContext('loadBooks(Object.keys(fileMap))',context);
+assert.equal(vm.runInContext('currentFileWords.length',context),381);
+assert.equal(vm.runInContext('new Set(currentFileWords.map(word=>word.id)).size',context),381);
+assert.equal(vm.runInContext('currentFileWords.some(word=>hasAudio(word))',context),false);
+vm.runInContext("fileMap['@course:german2:E1 单词汇总.xlsx'].arrayBuffer=()=>new Promise(resolve=>window.finishCourseRead=resolve)",context);
+const pendingCourse=vm.runInContext("loadFile('@course:german2:E1 单词汇总.xlsx')",context);
+await vm.runInContext("changeCourse('german1')",context);
+vm.runInContext('window.finishCourseRead(new ArrayBuffer(0))',context);await pendingCourse;
+assert.equal(vm.runInContext('library.current().id',context),'german1');
+assert.equal(vm.runInContext('currentFileWords.length',context),65,'obsolete course reads cannot replace the selected course');
+console.log('PASS: Android course switching, 381 German 2 words/unique mixed IDs, no cross-course audio, and obsolete-course read cancellation.');

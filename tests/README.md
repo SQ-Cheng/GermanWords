@@ -6,6 +6,7 @@
 
 ```powershell
 node tests/test-parser.mjs
+node tests/test-library.mjs
 node tests/test-engine.mjs
 node tests/test-theme.mjs
 node tests/test-playback.mjs
@@ -35,7 +36,7 @@ pnpm --dir tests test:browser
 
 `browser.cjs` 检查生成的 Windows 前端的主题跟随、手动覆盖、重载保存、词库导入与学习交互；无需修改生产代码或启动外部服务。真机测试会短暂覆盖学习状态和主题，然后还原；触摸测试期间应保持手机解锁并让应用留在前台。
 
-本轮回归还覆盖双端 460 词混合与唯一 ID、原单元星标隔离、搜索与乱序组合、Android 混合进度恢复、无结果保留位置、Windows 卡片点击仅播放一次、语速保存与当前录音变速、同名导入录音的来源匹配。真机测试实际读取 MediaPlayer 的倍速，结束时还原原有语速偏好。
+公共回归覆盖德语（1）460 词与德语（2）381 词、混合唯一 ID、课程与原单元星标隔离、搜索与乱序组合、Android 混合进度恢复、无结果保留位置、Windows 卡片点击仅播放一次、语速保存与当前录音变速、同名导入录音的来源匹配。`test-library.mjs` 检查课程选择、稳定导入键、重名、存储失败与禁止跨内置课程匹配录音。真机测试实际读取 MediaPlayer 的倍速，结束时还原原有语速偏好。
 
 架构审查补充：共享星标存储覆盖旧 JSON、外部恢复、损坏数据、存储失败的内存回退；Windows 还验证卡片和列表隐藏答案、音频取消、逐行揭晓/星标/键盘以及词库替换清空旧状态。
 
@@ -52,13 +53,15 @@ pnpm --dir tests test:web
 
 Windows 上的 Chromium 使用本机 Edge，其他系统先执行 `pnpm --dir tests exec playwright install chromium`；Firefox 与 WebKit 由 Playwright 安装。可在安装和运行时使用相同的 `PLAYWRIGHT_BROWSERS_PATH` 自定义浏览器存放位置。浏览器二进制、Node 依赖和测试服务不会进入应用包。
 
-`test_web_bundle.py` 验证 ZIP 中词表、录音与公共原件逐字节一致，嵌入 XLSX 数据也一致，确认不含原生适配/配置，再解压到忽略的临时目录。`web.cjs` 对该解压包执行三种引擎的本地文件与 HTTP 子目录回归；临时 HTTP 服务仅用于测试，生产使用无需服务。覆盖 460 词/例句/录音匹配、真实播放与变速、搜索、自测、列表、备份导入导出及校验、重载保存、存储不可写降级、静音预览、快捷键、文件导入及 480–1280px/大字号布局。学习过程断言无外部请求；反馈/更新只验证外链，不提交数据。
+构建后先运行 `python tests/test_web_bundle.py`，验证 ZIP 中 17 份词表、459 份录音与公共原件逐字节一致，嵌入 XLSX 数据也一致，确认不含原生适配/配置，再解压到忽略的临时目录。`web.cjs` 对该解压包执行三种引擎的本地文件与 HTTP 子目录回归；临时 HTTP 服务仅用于测试，生产使用无需服务。覆盖 460 词/例句/录音匹配、真实播放与变速、搜索、自测、列表、备份导入导出及校验、重载保存、存储不可写降级、静音预览、快捷键、文件导入及 480–1280px/大字号布局。学习过程断言无外部请求；反馈/更新只验证外链，不提交数据。需要实际显示浏览器窗口时执行 `node tests/web.cjs --headed`。
+
+`course-ui.cjs` 供浏览器回归与真实 Tauri 回归复用，实际操作课程选择器，验证德语（2）的 9 份词表、381 个唯一词条、缺失录音状态、课程星标隔离、重启恢复和新旧备份兼容。两种桌面测试分别通过真实文件输入导入词表，验证切换两门课程后导入键与星标保持。Android 设备入口通过触摸和系统选择控件切换课程，检查导入词表/星标全局有效、200% 字号的德语（2）长词和课程菜单边界；测试组件仍仅在独立测试 APK 中。
 
 本地文件回归阻断全部 HTTP(S) 请求；Chromium、Firefox 同时启用离线模拟。Windows WebKit 的离线模拟会连 file:// 导航也阻止，故仅采用网络请求阻断。另独立复现了 Windows WebKit 在非 ASCII 本地路径下的 MP3 播放失败（普通音频页同样失败）：该组合明确记录媒体限制，其余功能继续测试，HTTP 模式必须实际播放。不能把此项记为完整离线音频通过。WebKit 在 Windows 上的回归不等同于 macOS Safari 实测；实际 macOS、Linux、iOS 设备尚未验证。参见 [Playwright 的引擎与平台说明](https://playwright.dev/docs/browsers)。
 
 旧 PowerShell 更新器已随架构迁移移除，不再维护其测试；历史验证记录保留。当前安装器、真实云盘升级和验证边界见 `artifacts/windows-desktop-verification.md`。
 
-合并前 P2 回归：`test-desktop.mjs` 检查备份的内存存储回退及启动词库的过期请求；Android 引擎测试检查主题/语速备份、旧格式兼容和非法字段不覆盖。真机入口还运行 `UpdateChecks`，验证更新信息签名、待安装记录跨管理器恢复、过期任务拒绝保存、损坏缓存拒绝及取消清理，不打开系统安装器。
+合并前 P2 回归：`test-desktop.mjs` 检查备份的内存存储回退、同步启动目录及按需读取错误；引擎测试检查过期读取不能覆盖切换后的课程。Android 引擎测试检查主题/语速备份、旧格式兼容和非法字段不覆盖。真机入口还运行 `UpdateChecks`，验证更新信息签名、待安装记录跨管理器恢复、过期任务拒绝保存、损坏缓存拒绝及取消清理，不打开系统安装器。
 
 发布工具回归执行 `python tests/test_updates.py`，无需上传权限或真实私钥。完整签名测试需要官方 Minisign（PATH 或 `MINISIGN`），没有安装时会明确跳过该测试。Rust 重定向策略执行 `cargo test --locked`（在 `apps/windows/src-tauri/`），静态检查执行 `cargo clippy --locked -- -D warnings`。
 

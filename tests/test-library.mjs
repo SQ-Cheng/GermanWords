@@ -11,7 +11,7 @@ for (const name of ['parser','vocabulary','audio','library'])
   vm.runInContext(fs.readFileSync(new URL('../shared/'+name+'.js',import.meta.url),'utf8'),context);
 const {library, audio} = vm.runInContext('({library:StudyLibrary, audio:WordAudio})',context);
 const files = [];
-for (const [course,names] of [['german1',['E1_单词汇总.xlsx','E2_单词汇总.xlsx']],['german2',['E1 单词汇总.xlsx','E10 单词汇总.xlsx','E2 单词汇总.xlsx']]])
+for (const [course,names] of [['german1',['E1_单词汇总.xlsx','E2_单词汇总.xlsx']],['german2',['E1 单词汇总.xlsx','E10 单词汇总.xlsx','E2 单词汇总.xlsx','虚词大盘点2.xlsx']]])
   files.push(...names.map(name=>({name,webkitRelativePath:'words/'+course+'/'+name})));
 const firstRecording={name:'und.mp3',webkitRelativePath:'words/german1/empty_words/und.mp3'};
 files.push(firstRecording);
@@ -33,7 +33,7 @@ for (const course of ['german2','german1','german2']) {
   assert.equal(new Set(catalogue.entries().map(entry=>entry.key)).size,catalogue.entries().length);
 }
 assert.deepEqual(Array.from(catalogue.entries().filter(entry=>!entry.imported),entry=>entry.key),[
-  '@course:german2:E1 单词汇总.xlsx','@course:german2:E2 单词汇总.xlsx','@course:german2:E10 单词汇总.xlsx'
+  '@course:german2:E1 单词汇总.xlsx','@course:german2:E2 单词汇总.xlsx','@course:german2:E10 单词汇总.xlsx','@course:german2:虚词大盘点2.xlsx'
 ]);
 assert.equal(catalogue.entries().find(entry=>entry.key==='Custom.xlsx').file,custom[2],'native File objects retain their methods and identity');
 assert.equal(library.create().current().id,'german2','selection survives restart');

@@ -1,5 +1,5 @@
 (async function () {
-  const oldMarks=localStorage.getItem(STORAGE_KEY), oldPrefs=localStorage.getItem(PREF_KEY);
+  const oldMarks=localStorage.getItem(STORAGE_KEY), oldPrefs=localStorage.getItem(PREF_KEY), oldCourse=localStorage.getItem(StudyLibrary.storageKey);
   let report='';
   const assert=(condition,message)=>{if(!condition)throw new Error(message);};
   try {
@@ -8,6 +8,21 @@
     isFilterActive=false;
     currentView='card';
     document.getElementById('modeSelect').value='normal';changeMode();
+    library.setImported([]);
+    await changeCourse('german2');
+    assert(currentFileWords.length===37 && document.getElementById('courseName').textContent==='德语（2）','course selector and course heading');
+    const second=Object.keys(fileMap);
+    assert(second.length===9 && second.every(name=>name.startsWith('@course:german2:')),'isolated German 2 book identities');
+    await loadBooks(second);
+    assert(currentFileWords.length===381 && new Set(currentFileWords.map(word=>word.id)).size===381,'all German 2 words and mixed IDs');
+    assert(!currentFileWords.some(word=>hasAudio(word)),'no cross-course recordings');
+    store.replaceAll({});
+    await loadFile('@course:german2:虚词大盘点2.xlsx');
+    toggleCurrentMark();
+    assert(store.marks(currentFileName).includes('und'),'German 2 star saved');
+    await changeCourse('german1');
+    await loadFile('虚词大盘点.xlsx');
+    assert(!currentFileWords.some(word=>word.german==='und' && word.marked),'same word in German 1 keeps an independent star');
     preferences.books=Object.create(null);
     const names=Object.keys(fileMap).filter(n=>!fileMap[n].imported);
     assert(names.length===8,'eight bundled books');
@@ -106,12 +121,13 @@
     processData([example]);
     assert(document.getElementById('cardGerman').textContent==='<b>literal</b>','literal imported text');
     assert(document.getElementById('cardExample').innerText==='A & B','examples');
-    report='PASS: 460 words / 460 matching recordings; mixed checkbox selection, unique IDs, isolated source-book stars, mixed progress/order restore, search, empty state; three modes, cards/lists, shuffle, navigation, heading, back and literal text.';
+    report='PASS: German 1: 460 words / 460 matching recordings; German 2: 381 words / isolated mixed IDs and stars / no cross-course audio; mixed checkbox selection, progress/order restore, search, empty state; modes, cards/lists, navigation, heading, back and literal text.';
   } catch(e) { report='FAIL: '+e.stack; }
   finally {
     pauseStudyAudio();
     if(oldMarks===null)localStorage.removeItem(STORAGE_KEY);else localStorage.setItem(STORAGE_KEY,oldMarks);
     if(oldPrefs===null)localStorage.removeItem(PREF_KEY);else localStorage.setItem(PREF_KEY,oldPrefs);
+    library.select(oldCourse || 'german1');
     preferences=JSON.parse(oldPrefs||'{}');applyPreferences();await reloadLibrary();
     document.getElementById('notice').innerHTML='';
     window.smokeResult=report;

@@ -15,6 +15,7 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#appVersion').textContent(), ' · ' + require('../shared/app-config.json').versionName);
     const initial = await page.evaluate(() => ({marks:localStorage.getItem(MarkStore.key), theme:localStorage.getItem('german_theme_v1'), rate:Playback.getRate()}));
     try {
+      await require('./course-ui.cjs')(page);
       const totals = await page.evaluate(async () => {
         let words = 0, audio = 0;
         for (const name of Object.keys(fileMap)) {
@@ -26,6 +27,23 @@ const assert = require('node:assert/strict');
         return {words, audio};
       });
       assert.deepEqual(totals, {words:460, audio:460});
+      await page.locator('#fileInput').setInputFiles(require('node:path').resolve(__dirname, '../shared/words/german1/E1_单词汇总.xlsx'));
+      await page.waitForFunction(() => currentFileWords.length === 65 && !fileMap[currentBookNames[0]].course);
+      const importedKey = await page.evaluate(() => currentBookNames[0]);
+      await page.locator('.star-mark').click();
+      for (const course of ['german2', 'german1']) {
+        await page.locator('#courseSelect').selectOption(course);
+        await page.waitForFunction(id => fileMap[currentBookNames[0]]?.course === id && currentFileWords.length > 0, course);
+        assert.equal(await page.locator('.file-item[data-imported="true"]').count(), 1);
+        assert.ok((await page.locator('.file-item[data-imported="true"] .book-name').innerText()).includes('导入词表'));
+        await page.screenshot({path:require('node:path').resolve(__dirname, `../artifacts/desktop-course-${course}.png`)});
+        await page.locator('.file-item[data-imported="true"] .book-name').click();
+        await page.waitForFunction(key => currentBookNames[0] === key && currentFileWords.length === 65, importedKey);
+        assert.equal(await page.locator('#courseName').innerText(), '我的词表');
+        assert.equal(await page.evaluate(() => displayWords[0].marked), true);
+      }
+      await page.reload();
+      await page.waitForFunction(() => currentFileWords.length === 65 && fileMap[currentBookNames[0]].course === 'german1');
       await page.locator('#themeSelect').selectOption('dark');
       await page.locator('#playbackRate').selectOption('1.25');
       await page.evaluate(() => { if (displayWords[currentIndex].marked) toggleCurrentMark(); });

@@ -47,6 +47,7 @@ async function checkEdition(browser, url, offline, name) {
     assert.equal(await page.locator('#appVersion').textContent(), ' · ' + version);
     assert.equal(await page.evaluate(() => typeof Feedback + ':' + typeof window.__TAURI__), 'undefined:undefined');
     assert.equal(await page.locator('#updateDialog').count(), 0);
+    await require('./course-ui.cjs')(page);
     const totals = await page.evaluate(async () => {
       await loadBooks(Object.keys(fileMap)); pauseStudyAudio();
       return {books:currentBookNames.length, words:currentFileWords.length,
@@ -162,11 +163,26 @@ async function checkEdition(browser, url, offline, name) {
     await page.screenshot({path:path.resolve(__dirname,`../artifacts/web-${name}-${offline?'file':'http'}.png`)});
     await page.setViewportSize({width:1280,height:900});
     // The ordinary multi-file picker works even when directory selection is unavailable.
-    const book=fs.readdirSync(path.join(root,'words')).find(name => name.endsWith('.xlsx'));
-    const audio=await page.evaluate(() => BrowserLibrary.find(item => item.path.endsWith('.mp3')).path);
-    await page.locator('#fileInput').setInputFiles([path.join(root,'words',book),path.join(root,audio)]);
-    assert.equal(await page.evaluate(() => Object.keys(fileMap).length===1 && currentFileWords.length===0 && currentAudio===null),true);
-    await page.locator('#fileList li').click(); await ready(page);
+    const book=fs.readdirSync(path.join(root,'words/german1')).find(name => name.endsWith('.xlsx'));
+    const audio=await page.evaluate(() => BuiltInLibrary.find(item => item.path.endsWith('.mp3')).path);
+    await page.locator('#fileInput').setInputFiles([path.join(root,'words/german1',book),path.join(root,audio)]);
+    await page.waitForFunction(() => Object.keys(fileMap).length===9 && currentBookNames.length===1 && !fileMap[currentBookNames[0]].course);
+    assert.equal(await page.locator('.file-item[data-imported="true"]').count(),1);
+    await ready(page);
+    const importedKey=await page.evaluate(()=>currentBookNames[0]);
+    await page.locator('.star-mark').click();
+    for (const course of ['german2','german1']) {
+      await page.locator('#courseSelect').selectOption(course);
+      await page.waitForFunction(id=>library.current().id===id && fileMap[currentBookNames[0]]?.course===id,course);
+      assert.equal(await page.locator('.file-item[data-imported="true"]').count(),1);
+      assert.ok((await page.locator('.file-item[data-imported="true"] .book-name').innerText()).includes('导入词表'));
+      assert.equal(await page.evaluate(key=>!!fileMap[key],importedKey),true,'import identities are independent of the course');
+      if (course==='german2') await page.screenshot({path:path.resolve(__dirname,`../artifacts/web-course-${name}-${offline?'file':'http'}.png`)});
+      await page.locator('.file-item[data-imported="true"]').click();
+      await page.waitForFunction(key=>currentBookNames[0]===key && currentFileWords.length===65,importedKey);
+      assert.equal(await page.locator('#courseName').innerText(),'我的词表');
+      assert.equal(await page.evaluate(()=>displayWords[0].marked),true);
+    }
     await page.reload(); await ready(page);
 
     await page.evaluate(() => { window.opened=[]; window.open=(...args)=>opened.push(args); });
@@ -186,7 +202,7 @@ async function checkEdition(browser, url, offline, name) {
   try {
     const chromiumOptions=process.platform==='win32'?{channel:'msedge'}:{};
     for (const [name,engine,options] of [['chromium',chromium,chromiumOptions],['firefox',firefox,{}],['webkit',webkit,{}]]) {
-      const browser=await engine.launch({headless:true,...options});
+      const browser=await engine.launch({headless:!process.argv.includes('--headed'),...options});
       try {
         await checkEdition(browser,fileURL,true,name);
         await checkEdition(browser,httpURL,false,name);

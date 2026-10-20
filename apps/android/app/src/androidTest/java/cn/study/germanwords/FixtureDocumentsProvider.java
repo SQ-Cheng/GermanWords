@@ -50,7 +50,7 @@ public class FixtureDocumentsProvider extends ContentProvider {
         String id=DocumentsContract.getDocumentId(uri);
         try {
             android.content.Context target=getContext().createPackageContext("cn.study.germanwords",0);
-            String asset=id.equals("audio")?"web/words/einheit1/lernen.mp3":"web/words/E1_单词汇总.xlsx";
+            String asset=id.equals("audio")?"web/words/german1/einheit1/lernen.mp3":"web/words/german1/E1_单词汇总.xlsx";
             File cached=new File(getContext().getCacheDir(),id);
             try(InputStream in=target.getAssets().open(asset);OutputStream out=new FileOutputStream(cached)) {
                 byte[] buffer=new byte[4096];int n;while((n=in.read(buffer))!=-1)out.write(buffer,0,n);

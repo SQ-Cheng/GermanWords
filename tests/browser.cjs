@@ -9,7 +9,7 @@ process.chdir(path.resolve(__dirname,'..'));
   const browser = await chromium.launch({headless:true, channel:'msedge'});
   try {
     for (const [html, words] of [
-      ['output/windows/web/index.html','output/windows/web/words']
+      ['output/windows/web/index.html','output/windows/web/words/german1']
     ]) {
       const page = await browser.newPage();
       const errors = [];
@@ -268,7 +268,8 @@ process.chdir(path.resolve(__dirname,'..'));
         return retained && currentFileName===names[1];
       }),true,'failed or obsolete mixed-book reads preserve the successful selection');
       await page.locator('input[webkitdirectory]').setInputFiles(path.resolve(words));
-      assert.equal(await page.evaluate(()=>currentFileWords.length===0 && currentAudio===null && autoPlayTimer===null),true,'replacing a library clears old study data and cancels playback');
+      await page.waitForFunction(()=>currentFileWords.length===65);
+      assert.equal(await page.evaluate(()=>currentFileWords.every(word=>word.sourceBook===currentFileName)),true,'replacing session imports selects the new file and cancels the old read');
       assert.equal(await page.evaluate(()=>{
         const files=['left','right'].map(root=>{
           const file=new File(['fixture'],'lernen.mp3');
@@ -279,7 +280,7 @@ process.chdir(path.resolve(__dirname,'..'));
         buildAudioIndex([...files,...books]);
         return ['left','right'].every((root,index)=>findAudioFile({german:'lernen',pronounce:'words/einheit1/lernen.mp3',sourceRoot:'import/'+root})===files[index]);
       }),true,'same-name imported recordings stay within the matching source folder');
-      await page.evaluate(async () => { await loadFile(Object.keys(fileMap)[0]); switchView('card'); currentIndex=0; updateUI(); });
+      await page.evaluate(async () => { buildAudioIndex(library.files()); await loadFile(Object.keys(fileMap)[0]); switchView('card'); currentIndex=0; updateUI(); });
       assert.equal(await page.locator('#btnPrevCard').isDisabled(),true);
       await page.locator('#btnNextCard').click();
       assert.equal(await page.evaluate(()=>currentIndex),1);
