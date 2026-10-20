@@ -51,6 +51,8 @@ const WordAudio = (function () {
   function build(files) {
     const audioIndex = makeAudioIndex(files);
     audioIndex.byRoot = new Map();
+    audioIndex.courseRoots = new Set(files.filter(file => file.course).map(Vocabulary.sourceRoot));
+    audioIndex.imported = makeAudioIndex(files.filter(file => !file.course));
     const roots = new Set(files.filter(file => /\.xlsx$/i.test(file.name)).map(Vocabulary.sourceRoot));
     for (const file of files) if (file.root) roots.add(file.root);
     for (const root of roots) {
@@ -139,7 +141,9 @@ const WordAudio = (function () {
       const hit = pickByFold(name.replace(/\.[^.]+$/, ""), word, index);
       if (hit) return hit;
     }
-    return index !== audioIndex ? find(word, audioIndex, audioIndex) : null;
+    // A missing built-in recording may use a user import, never another course.
+    const fallback = audioIndex.courseRoots && audioIndex.courseRoots.has(word.sourceRoot) ? audioIndex.imported : audioIndex;
+    return index !== audioIndex ? find(word, fallback, fallback) : null;
   }
 
   return {build, find};
