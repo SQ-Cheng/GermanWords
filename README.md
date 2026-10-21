@@ -53,6 +53,8 @@ GermanWords 是离线德语词汇学习工具，提供 Android、Windows 客户�
 
 共享层负责数据与通用规则，客户端负责界面、播放及平台能力。公共文件由构建工具自动打包，无需手动维护副本。结构与维护约定见 [架构说明](docs/architecture.md)。
 
+签名备份、版本兼容及发布流程见 [维护与发布要求](docs/requirements.md)。
+
 ### Android
 
 需要 JDK 17+、Android SDK 35。用 Android Studio 打开 `apps/android/`，或配置 `ANDROID_HOME` 后执行：

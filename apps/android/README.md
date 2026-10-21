@@ -51,7 +51,7 @@ $env:JAVA_HOME = 'E:\Android Studio\jbr'
 node ..\..\tests\test-engine.mjs
 ```
 
-APK：`app/build/outputs/apk/debug/app-debug.apk`。这是使用 Android 默认开发签名的可安装测试版本。GitHub beta APK 由 `assembleRelease` 构建后以同一开发证书签名，关闭调试且不包含测试组件，可覆盖历史测试包；上架或正式发布需要独立发布签名。
+APK：`app/build/outputs/apk/debug/app-debug.apk`。这是使用本机 Android 开发签名的可安装测试版本。发行 APK 由 `assembleRelease` 构建后，以固定发布 keystore 中的历史升级证书签名，关闭调试且不包含测试组件。正式版继续沿用兼容签名，不直接更换 keystore；签名材料备份、Release 签名与发布操作见 [维护与发布要求](../../docs/requirements.md)。
 
 发布工具通过 Android SDK 的 `aapt` / `apksigner` 检查包名、实际版本、嵌入配置和证书；SDK 由 PATH、`ANDROID_HOME` 或 `ANDROID_SDK_ROOT` 定位。支持的升级证书指纹记录在 `release-certificate.sha256`，它是公开身份信息，不是私钥。正式签名迁移须另行设计，不能只修改指纹来绕过现有设备的签名要求。
 

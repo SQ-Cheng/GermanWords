@@ -4,7 +4,7 @@
 
 ## 架构审查
 
-实现前先提交 [迁移架构](../docs/windows-desktop-migration.md)，依次核对功能/数据迁移边界、更新/安全/复杂度边界。完成后再核对：
+实现前先提交 [历史迁移架构](https://github.com/SQ-Cheng/GermanWords/blob/v4.2.1-beta.3/docs/windows-desktop-migration.md)，依次核对功能/数据迁移边界、更新/安全/复杂度边界。完成后再核对：
 
 - Windows 只有 `frontend/` 一套学习界面，`shared/` 保持平台无关；没有引入 React、数据库、服务端、常驻服务或通用平台控制器。
 - Rust 宿主只暴露 `check_update` / `install_update` 两个应用命令。Excel、音频匹配和星标规则继续使用公共组件；未复制到 Rust。更新安装交给官方插件和 NSIS，不再维护 PowerShell 文件替换器。

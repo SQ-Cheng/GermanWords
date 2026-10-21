@@ -36,8 +36,8 @@ Android 与桌面保留各自界面与平台会话状态，不用通用控制器
 
 单单元词条保留旧 ID 和原有存储键；混合词条使用单元名和旧 ID 组成唯一 ID，并保留 `sourceBook` / `sourceRoot`。星标仍写回原单元；混合顺序和位置单独保存。读取全部成功且请求仍是最新时才切换词表，失败和过期读取不得覆盖当前学习状态。搜索词不持久化，无结果不得抹除已保存位置。
 
-修改共享数据规则后运行 `pnpm --dir tests test`；修改任一界面还需跑浏览器回归或真机测试，入口见 `tests/README.md`。双端版本号在 `shared/app-config.json`，Gradle 和 Windows 打包脚本读取；versionCode 必须递增。发布 APK 使用 Release 构建并验证签名；Windows 正式分发 NSIS 安装包，内置 HTML、公共 JS/CSS 和词库。Beta 暂沿用历史开发证书以允许升级，正式发布前需制定独立签名迁移方案。
+修改共享数据规则后运行 `pnpm --dir tests test`；修改任一界面还需跑浏览器回归或真机测试，入口见 `tests/README.md`。双端版本号在 `shared/app-config.json`，Gradle 和 Windows 打包脚本读取；versionCode 必须递增。发布 APK 使用 Release 构建并沿用历史升级证书；正式版名称不要求换签，确需更换签名时另行设计兼容迁移。Windows 分发 NSIS 安装包，内置 HTML、公共 JS/CSS 和词库。
 
 双端读取同一个更新索引，版本化安装包置于各自版本子目录；Android 使用 RSA 载荷与 APK 签名校验，Windows 使用 Tauri 官方格式与安装器签名。`tools/publish-update.py` 校验双端产物、上传并读回核对后最后发布索引，维护端写链接不进入客户端。
 
-意见反馈表单不接触平台 API，`mobile.js` / `desktop.js` 注入发送函数，并负责打开表单前关闭词库、暂停音频；原生 `FeedbackSender` / `feedback.rs` 负责基本设备元数据及单文件上传。Android 更新与反馈复用 `ServiceHttp` 的来源、重定向和响应大小限制；Windows 复用原生 HTTPS 客户端限制。只在用户提交时发送，不读取学习存储。Android 反馈队列独立于导入/备份队列，均随 Activity 关闭；Windows 事件在脚本中绑定，避免违反 CSP。Windows 显示版本由构建工具从公共配置注入，源码页面不重复维护版本号。客户端只包含只读更新入口与仅上传反馈入口，二者不包含维护者写权限。详细格式、迁移边界与发布命令见 [更新维护](updates.md)。
+意见反馈表单不接触平台 API，`mobile.js` / `desktop.js` 注入发送函数，并负责打开表单前关闭词库、暂停音频；原生 `FeedbackSender` / `feedback.rs` 负责基本设备元数据及单文件上传。Android 更新与反馈复用 `ServiceHttp` 的来源、重定向和响应大小限制；Windows 复用原生 HTTPS 客户端限制。只在用户提交时发送，不读取学习存储。Android 反馈队列独立于导入/备份队列，均随 Activity 关闭；Windows 事件在脚本中绑定，避免违反 CSP。Windows 显示版本由构建工具从公共配置注入，源码页面不重复维护版本号。客户端只包含只读更新入口与仅上传反馈入口，二者不包含维护者写权限。数据格式见 [更新协议](updates.md)，签名备份、迁移及发布操作见 [维护要求](requirements.md)。

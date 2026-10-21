@@ -2,6 +2,11 @@
 **/build/
 local.properties
 *.jks
+*.keystore
+*.key
+*.pem
+*.p12
+*.pfx
 .idea/
 __pycache__/
 artifacts/*.apk
