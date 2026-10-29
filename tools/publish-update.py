@@ -161,17 +161,20 @@ def download_url(config, path):
 
 def select_manifests(manifests, published, config):
     """Never move an entry point backwards; a newer beta survives an older stable release."""
+    versions = {}
+    for name, data in published.items():
+        envelope = json.loads(data)
+        release = json.loads(base64.b64decode(envelope['payload'], validate=True))
+        if envelope['version'] != release['versionName']:
+            raise ValueError('Published index versions differ')
+        if release['versionCode'] > config['versionCode'] or (envelope['version'] != config['versionName'] and release['versionCode'] == config['versionCode']):
+            raise ValueError('Increment versionCode across all channels')
+        versions[name] = envelope['version']
     selected = []
     for manifest in manifests:
-        previous = published.get(manifest.name)
+        previous = versions.get(manifest.name)
         if previous:
-            envelope = json.loads(previous)
-            release = json.loads(base64.b64decode(envelope['payload'], validate=True))
-            if envelope['version'] != release['versionName']:
-                raise ValueError('Published index versions differ')
-            if release['versionCode'] > config['versionCode'] or (envelope['version'] != config['versionName'] and release['versionCode'] == config['versionCode']):
-                raise ValueError('Increment versionCode across all channels')
-            newer = version_key(envelope['version']) > version_key(config['versionName'])
+            newer = version_key(previous) > version_key(config['versionName'])
             if newer and config['channel'] == 'stable' and manifest.name == 'update-beta.json':
                 print('Keeping the newer beta entry point')
                 continue
@@ -204,8 +207,8 @@ def upload_files(files, manifests, upload_url, config):
     listing_url = f'https://{upload.netloc}/api/v2.1/share-links/{share_token}/dirents/?path='
     root = json.loads(read_url(listing_url + '%2F'))['dirent_list']
     root_names = {entry['file_name'] for entry in root if not entry['is_dir']}
-    published = {manifest.name:read_url(download_url(config, manifest.name) + '&t=' + uuid.uuid4().hex)
-                 for manifest in manifests if manifest.name in root_names}
+    published = {Path(path).name:read_url(download_url(config, path.lstrip('/')) + '&t=' + uuid.uuid4().hex)
+                 for path in config['manifestPaths'].values() if Path(path).name in root_names}
     selected = select_manifests(manifests, published, config)
     # No index is written until every immutable package has passed readback verification.
     files = [file for file in files if file not in manifests] + selected

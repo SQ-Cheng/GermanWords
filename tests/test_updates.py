@@ -189,6 +189,12 @@ class ReleaseInputs(unittest.TestCase):
             publisher.select_manifests([stable,beta],{beta.name:index('4.3.0-beta.1',21)},config)
         with self.assertRaises(ValueError):
             publisher.select_manifests([beta],{beta.name:index('4.2.1',20)},dict(config,channel='beta',versionName='4.2.1-beta.5',versionCode=21))
+        # A newer beta can remain in the beta entry while a stable release consumes a higher code.
+        published = {stable.name:index('4.2.1',21), beta.name:index('4.3.0-beta.1',20)}
+        for code in [20,21]:
+            with self.assertRaises(ValueError):
+                publisher.select_manifests([beta],published,dict(config,channel='beta',versionName='4.3.0-beta.2',versionCode=code))
+        self.assertEqual(publisher.select_manifests([beta],published,dict(config,channel='beta',versionName='4.3.0-beta.2',versionCode=22)),[beta])
         self.assertLess(publisher.version_key('4.2.1-beta.9'),publisher.version_key('4.2.1-beta.10'))
         self.assertLess(publisher.version_key('4.2.1-beta.10'),publisher.version_key('4.2.1'))
         for invalid in ['4.2', '4.2.1-beta', '4.2.1-beta.01', '4.2.01']:
@@ -221,6 +227,24 @@ class ReleaseInputs(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     publisher.upload_files([package,stable,beta],[stable,beta],'https://cloud.tsinghua.edu.cn/d/abcdef/',config)
             self.assertEqual(uploaded,['package.apk'],'failed package readback never commits an index')
+
+    def test_beta_upload_checks_the_stable_version_code_before_writing(self):
+        config = dict(self.config, channel='beta', versionName='4.3.0-beta.2', versionCode=21)
+        def index(version, code):
+            return json.dumps(dict(version=version,payload=base64.b64encode(json.dumps(dict(versionName=version,versionCode=code)).encode()).decode())).encode()
+        published = {'update-stable.json':index('4.2.1',21),'update-beta.json':index('4.3.0-beta.1',20)}
+        def read(url):
+            if '/d/abcdef/' in url:return b"dirPath: '/Release/', canUpload: true"
+            if '/upload/?' in url:return b'{"upload_link":"https://cloud.tsinghua.edu.cn/upload/temporary"}'
+            if '/dirents/' in url:return json.dumps(dict(dirent_list=[dict(is_dir=False,file_name=name) for name in published])).encode()
+            return next(data for name,data in published.items() if name in url)
+        with tempfile.TemporaryDirectory() as directory:
+            package, manifest = Path(directory)/'package.apk', Path(directory)/'update-beta.json'
+            package.write_bytes(b'apk');manifest.write_bytes(b'index')
+            with patch.object(publisher,'read_url',side_effect=read), patch.object(publisher.urllib.request,'urlopen') as post:
+                with self.assertRaisesRegex(ValueError,'versionCode'):
+                    publisher.upload_files([package,manifest],[manifest],'https://cloud.tsinghua.edu.cn/d/abcdef/',config)
+                post.assert_not_called()
 
     def test_build_channel_and_version_must_match_before_signing(self):
         for version, channel in [('4.2.1-beta.5','stable'), ('4.2.1','beta'), ('4.2.1','unknown')]:

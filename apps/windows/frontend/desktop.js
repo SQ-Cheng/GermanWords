@@ -72,7 +72,6 @@ const Desktop = (function () {
   channelSelect.onchange = () => selectChannel(channelSelect.value);
   document.getElementById('declineBetaUpdates').onclick = () => selectChannel('stable');
   document.getElementById('acceptBetaUpdates').onclick = () => selectChannel('beta');
-  channelDialog.addEventListener('cancel', event => event.preventDefault());
   async function loadBuiltIn() {
     if (!native) return;
     try {

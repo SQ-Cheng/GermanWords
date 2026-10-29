@@ -40,6 +40,10 @@ final class UpdateChecks {
             JSONObject release=new JSONObject().put("android",new JSONObject().put("size",1).put("sha256","bad"));
             if(!Boolean.TRUE.equals(save.invoke(first,file,release)))throw new IOException("Pending update was not saved");
             first.close();
+            preferences.edit().remove("channelConfirmed").commit();
+            first.check(false);
+            if(!preferences.contains("pendingRelease"))throw new IOException("Closed manager cleared another manager's pending update");
+            preferences.edit().putBoolean("channelConfirmed",true).commit();
             if(!file.equals(pending.invoke(restored)))throw new IOException("New manager cannot resume the saved file");
             if(!Boolean.FALSE.equals(save.invoke(first,file,release)))throw new IOException("Closed manager can still save a download");
             try { verify.invoke(restored,file,release);throw new IOException("Corrupt cache was accepted"); }
@@ -66,14 +70,22 @@ final class UpdateChecks {
         java.util.concurrent.atomic.AtomicBoolean busy=(java.util.concurrent.atomic.AtomicBoolean)busyField.get(manager);
         for(int i=0;i<80 && busy.get();i++)Thread.sleep(500);
         if(busy.get())throw new IOException("Updater is still busy before initial-choice test");
-        activity.getSharedPreferences("updates",0).edit().remove("channelConfirmed").commit();
+        activity.getSharedPreferences("updates",0).edit().remove("channelConfirmed")
+                .putString("pendingFile","update-migration-test.apk").putString("pendingRelease","{}").commit();
         CountDownLatch ready=new CountDownLatch(1);
         AtomicReference<Exception> failure=new AtomicReference<>();
         activity.runOnUiThread(() -> {
             try {
                 manager.check(false);
+                if(activity.getSharedPreferences("updates",0).contains("pendingRelease"))throw new IOException("Old pending package bypassed initial preference confirmation");
                 AlertDialog dialog=(AlertDialog)dialogField.get(manager);
                 if(dialog==null || !dialog.isShowing())throw new IOException("Initial update question was not shown");
+                dialog.onBackPressed();
+                if(dialog.isShowing())throw new IOException("Initial question blocks leaving for offline study");
+                if(activity.getSharedPreferences("updates",0).getBoolean("channelConfirmed",false))throw new IOException("Cancel confirmed an update preference");
+                manager.check(false);
+                dialog=(AlertDialog)dialogField.get(manager);
+                if(dialog==null || !dialog.isShowing())throw new IOException("Unanswered update question was not shown again");
                 dialog.getButton("beta".equals(previous)?AlertDialog.BUTTON_POSITIVE:AlertDialog.BUTTON_NEGATIVE).performClick();
             } catch(Exception e) { failure.set(e); }
             finally { ready.countDown(); }

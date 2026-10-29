@@ -61,16 +61,19 @@ final class UpdateManager implements AutoCloseable {
         updateDialog=new AlertDialog.Builder(activity).setTitle("是否接收测试版更新？")
                 .setMessage("选择“是”也会接收正式版更新，可随时在设置中更改。")
                 .setNegativeButton("否",(dialog,which) -> chooseChannel("stable"))
-                .setPositiveButton("是",(dialog,which) -> chooseChannel("beta"))
-                .setCancelable(false).show();
+                .setPositiveButton("是",(dialog,which) -> chooseChannel("beta")).show();
     }
     private void chooseChannel(String value) {
         if(!setChannel(value)) { message("无法保存更新设置，请稍后重试"); activity.web.post(() -> ui(this::askChannel)); }
     }
     synchronized void check(boolean manual) {
+        if(closed)return;
+        if(!activity.getSharedPreferences("updates",0).getBoolean("channelConfirmed",false)) {
+            if(activity.getSharedPreferences("updates",0).contains("pendingRelease"))clearPending();
+            ui(this::askChannel);return;
+        }
         if(activity.getSharedPreferences("updates",0).contains("pendingRelease")) { resumeInstall(); return; }
-        if(!activity.getSharedPreferences("updates",0).getBoolean("channelConfirmed",false)) { ui(this::askChannel); return; }
-        if(closed || !busy.compareAndSet(false,true)) return;
+        if(!busy.compareAndSet(false,true)) return;
         String channel=channel();
         worker.execute(() -> {
             try {
@@ -236,5 +239,8 @@ final class UpdateManager implements AutoCloseable {
             } finally { busy.set(false); }
         });
     }
-    @Override public synchronized void close() { closed=true;worker.shutdown(); }
+    @Override public synchronized void close() {
+        closed=true;worker.shutdown();
+        activity.runOnUiThread(() -> { if(updateDialog!=null)updateDialog.dismiss(); });
+    }
 }
