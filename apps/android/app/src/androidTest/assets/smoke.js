@@ -66,7 +66,10 @@
     toggleFilter();
     assert(displayWords.length===1,'star filter');
     toggleCurrentMark();
-    assert(displayWords.length===0,'remove final star');
+    assert(displayWords.length===1 && !displayWords[0].marked,'unstar keeps current card');
+    assert(!store.marks(currentFileName).includes(displayWords[0].german),'unstar persists immediately');
+    nextCard();
+    assert(displayWords.length===0,'remove final unstarred card when leaving');
     toggleReveal();
     toggleFilter();
     nextCard();assert(currentIndex===1,'next');

@@ -285,7 +285,7 @@ function processData(words) {
 }
 
 // === 列表管理（筛选与排序） ===
-// keepIndex：在“只看星标”里取消星标时不要跳回第一张
+// keepIndex：重新筛选时尽量保留位置
 function refreshDisplayList(keepIndex) {
   pauseStudyAudio();
   revealedListIds.clear();
@@ -395,9 +395,9 @@ function updateNav() {
   progress.disabled = displayWords.length <= 1;
   progress.style.setProperty('--progress', (displayWords.length > 1 ? currentIndex / (displayWords.length - 1) * 100 : 0) + '%');
   progress.setAttribute('aria-valuetext', displayWords.length ? `${currentIndex + 1} / ${displayWords.length}` : '0 / 0');
-  prev.disabled = currentIndex <= 0;
-  next.disabled =
-    displayWords.length === 0 || currentIndex >= displayWords.length - 1;
+  const leavingUnstarred = isFilterActive && displayWords[currentIndex] && !displayWords[currentIndex].marked;
+  prev.disabled = !displayWords.length || (!leavingUnstarred && currentIndex <= 0);
+  next.disabled = !displayWords.length || (!leavingUnstarred && currentIndex >= displayWords.length - 1);
 }
 
 function updateUI() {
@@ -674,22 +674,23 @@ function toggleListReveal(word) {
 
 // === 交互操作 ===
 function nextCard() {
-  if (currentIndex < displayWords.length - 1) navigateTo(currentIndex + 1);
+  if (currentIndex < displayWords.length - 1 || (isFilterActive && displayWords[currentIndex] && !displayWords[currentIndex].marked)) navigateTo(currentIndex + 1);
 }
 
 function prevCard() {
-  if (currentIndex > 0) navigateTo(currentIndex - 1);
+  if (currentIndex > 0 || (isFilterActive && displayWords[currentIndex] && !displayWords[currentIndex].marked)) navigateTo(currentIndex - 1);
 }
 
 function navigateTo(index) {
   if (!Number.isInteger(index) || !displayWords.length) return;
   pauseStudyAudio();
   lastAutoKey = null;
-  index = Math.max(0, Math.min(displayWords.length - 1, index));
-  currentIndex = index;
+  const target = Vocabulary.navigate(displayWords, currentIndex, index, isFilterActive);
+  displayWords = target.words;
+  currentIndex = target.index;
   isRevealed = false;
   updateUI();
-  if (currentView === 'list') document.querySelectorAll('#wordTable tbody tr')[index].scrollIntoView({block:'nearest'});
+  if (currentView === 'list' && displayWords.length) document.querySelectorAll('#wordTable tbody tr')[currentIndex].scrollIntoView({block:'nearest'});
   else document.querySelector('.card-body').scrollTop = 0;
 }
 
@@ -718,11 +719,7 @@ function toggleMark(wordObj) {
   });
   store.setMark(book, wordObj.german, wordObj.marked);
 
-  if (isFilterActive && !wordObj.marked) {
-    refreshDisplayList(true);
-  } else {
-    updateUI();
-  }
+  updateUI();
 }
 
 // === 键盘事件 ===

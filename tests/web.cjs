@@ -67,6 +67,7 @@ async function checkEdition(browser, url, offline, name) {
     await page.locator('#wordSearch').fill('');
     assert.equal(await page.evaluate(() => displayWords.length),460);
     await page.evaluate(async () => { await loadFile(Object.keys(fileMap)[0]); pauseStudyAudio(); });
+    await require('./starred-ui.cjs')(page);
     await page.locator('#modeSelect').selectOption('test-zh');
     assert.equal(await page.locator('#germanArea').evaluate(el => el.classList.contains('hidden-content')),true);
     await page.locator('#cardView').click();

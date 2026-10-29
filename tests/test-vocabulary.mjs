@@ -29,3 +29,20 @@ assert.notEqual(mixed.selectionKey(['A','B']),mixed.selectionKey(['AB']));
 await assert.rejects(()=>mixed.readBooks(files,['A','missing']),/不存在/);
 await assert.rejects(()=>mixed.readBooks({Empty:{name:'empty.xlsx',words:[]}},['Empty']),/没有读到单词/);
 console.log('PASS: mixed-book identity/source isolation, legacy single-book IDs, non-mutating enrichment and invalid-book errors.');
+
+const a={id:'a',marked:true}, b={id:'b',marked:false}, c={id:'c',marked:true};
+for(const [words,current,target,expected,expectedIndex] of [
+  [[a,b,c],1,2,[a,c],1],
+  [[a,b,c],1,0,[a,c],0],
+  [[b,c],0,1,[c],0],
+  [[a,b],1,2,[a],0],
+  [[b],0,1,[],0],
+  [[a,b,c],0,1,[a,c],1],
+]) {
+  const result=vocabulary.navigate(words,current,target,true);
+  assert.deepEqual(Array.from(result.words),expected);
+  assert.equal(result.index,expectedIndex);
+}
+assert.equal(vocabulary.navigate([a,b,c],0,1,false).words.length,3,'normal mode retains unstarred words');
+assert.equal(vocabulary.navigate([a,b,c],0,1,false).index,1);
+console.log('PASS: deferred star removal retains next/previous identity, skips unstarred targets and handles the last card.');

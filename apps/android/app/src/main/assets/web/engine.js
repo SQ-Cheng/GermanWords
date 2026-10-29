@@ -261,7 +261,7 @@
       }
 
       // === 列表管理（筛选与排序） ===
-      // keepIndex：在“只看星标”里取消星标时不要跳回第一张
+      // keepIndex：重新筛选或恢复进度时尽量保留位置
       function refreshDisplayList(keepIndex, selectedId) {
         pauseStudyAudio();
         let baseList = orderedWords.slice();
@@ -636,19 +636,11 @@
 
       // === 交互操作 ===
       function nextCard() {
-        if (currentIndex < displayWords.length - 1) {
-          currentIndex++;
-          isRevealed = false;
-          updateUI();
-        }
+        if (currentIndex < displayWords.length - 1 || (isFilterActive && displayWords[currentIndex] && !displayWords[currentIndex].marked)) seekProgress(currentIndex + 1);
       }
 
       function prevCard() {
-        if (currentIndex > 0) {
-          currentIndex--;
-          isRevealed = false;
-          updateUI();
-        }
+        if (currentIndex > 0 || (isFilterActive && displayWords[currentIndex] && !displayWords[currentIndex].marked)) seekProgress(currentIndex - 1);
       }
 
       function toggleCurrentMark() {
@@ -663,11 +655,7 @@
         });
         store.setMark(book, wordObj.german, wordObj.marked);
 
-        if (isFilterActive && !wordObj.marked) {
-          refreshDisplayList(true);
-        } else {
-          updateUI();
-        }
+        updateUI();
       }
 
       // === 键盘事件 ===

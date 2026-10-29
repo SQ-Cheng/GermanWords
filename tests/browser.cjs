@@ -187,6 +187,7 @@ process.chdir(path.resolve(__dirname,'..'));
       await page.evaluate(()=>{document.getElementById('modeSelect').value='normal';changeMode();});
       await page.evaluate(() => { currentIndex=0; toggleCurrentMark(); toggleFilter(); });
       assert.equal(await page.evaluate(()=>displayWords.length),1);
+      await require('./starred-ui.cjs')(page);
       await page.evaluate(() => { toggleFilter(); switchView('list'); });
       assert.equal(await page.locator('#wordTable tbody tr').count(),65);
       await page.evaluate(()=>{document.getElementById('modeSelect').value='test-zh';changeMode();});

@@ -123,8 +123,9 @@ function paintStudy() {
   progress.value = currentIndex;
   progress.disabled = displayWords.length <= 1;
   paintProgress(currentIndex);
-  document.getElementById('btnPrevCard').disabled = !displayWords.length || currentIndex <= 0;
-  document.getElementById('btnNextCard').disabled = !displayWords.length || currentIndex >= displayWords.length - 1;
+  const leavingUnstarred = isFilterActive && displayWords[currentIndex] && !displayWords[currentIndex].marked;
+  document.getElementById('btnPrevCard').disabled = !displayWords.length || (!leavingUnstarred && currentIndex <= 0);
+  document.getElementById('btnNextCard').disabled = !displayWords.length || (!leavingUnstarred && currentIndex >= displayWords.length - 1);
   const star = document.querySelector('.star-mark');
   const word = displayWords[currentIndex];
   star.textContent = word && word.marked ? '★' : '☆';
@@ -161,13 +162,15 @@ function previewProgress(value) {
 function seekProgress(value) {
   const index = Number(value);
   if (!Number.isInteger(index) || !displayWords.length) return;
-  currentIndex = Math.max(0, Math.min(displayWords.length - 1, index));
+  const target = Vocabulary.navigate(displayWords, currentIndex, index, isFilterActive);
+  displayWords = target.words;
+  currentIndex = target.index;
   isRevealed = false;
   lastAutoKey = null;
   pauseStudyAudio();
   document.querySelector('.card-body').scrollTop = 0;
   updateUI();
-  if (currentView === 'list') {
+  if (currentView === 'list' && displayWords.length) {
     document.querySelectorAll('#wordTable tbody tr')[currentIndex].scrollIntoView({block:'nearest'});
   }
 }

@@ -14,6 +14,23 @@ const Vocabulary = (function () {
   function selectionKey(names) {
     return names.length === 1 ? names[0] : '@mixed:' + JSON.stringify(names);
   }
+  // Keep unstarred words visible until navigation, then retain the intended neighbour.
+  function navigate(words, current, target, markedOnly) {
+    const position = Math.max(0, Math.min(words.length - 1, target));
+    let selected = words[position];
+    const visible = markedOnly ? words.filter(word => word.marked) : words;
+    if (markedOnly && selected && !selected.marked) {
+      const step = target < current ? -1 : 1;
+      selected = null;
+      for (const direction of [step, -step]) {
+        for (let index = position; index >= 0 && index < words.length; index += direction) {
+          if (words[index].marked) { selected = words[index]; break; }
+        }
+        if (selected) break;
+      }
+    }
+    return {words:visible, index:Math.max(0, visible.indexOf(selected))};
+  }
   async function readBooks(files, names, inflateRaw) {
     const words = [], warnings = [];
     for (const name of names) {
@@ -29,5 +46,5 @@ const Vocabulary = (function () {
     }
     return {words, warnings};
   }
-  return {matches, sourceRoot, selectionKey, readBooks};
+  return {matches, sourceRoot, selectionKey, readBooks, navigate};
 })();
