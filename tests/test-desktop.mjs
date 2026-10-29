@@ -3,18 +3,18 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 
 const source = name => fs.readFileSync(new URL('../' + name, import.meta.url), 'utf8');
-function fixture(native = false) {
-  const saved = new Map();
+function fixture(native = false, options = {}) {
+  const saved = new Map(options.saved || []), calls = [];
   let blocked = false, backup, resolveFile, rejectFile;
   const builtIn = [], requests = [];
   const elements = new Map();
   const get = id => {
-    if (!elements.has(id)) elements.set(id, {addEventListener(){}, close(){}, showModal(){}, disabled:false});
+    if (!elements.has(id)) elements.set(id, {dataset:{default:'beta'},addEventListener(){}, close(){this.open=false;}, showModal(){this.open=true;}, disabled:false});
     return elements.get(id);
   };
   const localStorage = {getItem:key => saved.get(key) || null,
     setItem(key, value) { if (blocked) throw Error('quota'); saved.set(key, value); }};
-  const context = vm.createContext({Feedback:{setSender(){}},window:{__TAURI__:native ? {core:{invoke:async () => null}} : undefined},
+  const context = vm.createContext({Feedback:{setSender(){}},window:{__TAURI__:native ? {core:{invoke:async (name,args) => {calls.push({name,args});return options.invoke ? options.invoke(name,args) : null;}}} : undefined},
     localStorage, document:{getElementById:get, createElement:() => ({click(){}})},
     Blob:class {constructor(parts) { backup = JSON.parse(parts[0]); }},
     URL:class extends URL {static createObjectURL() {return 'blob:backup';} static revokeObjectURL(){}},
@@ -29,7 +29,7 @@ function fixture(native = false) {
   vm.runInContext(source('shared/library.js') + '\nconst library = StudyLibrary.create();', context);
   vm.runInContext(source('apps/web/backup.js'), context);
   vm.runInContext(source('apps/windows/frontend/desktop.js'), context);
-  return {context, get, saved, builtIn, requests, block:value => blocked=value, backup:() => backup,
+  return {context, get, saved, builtIn, requests, calls, block:value => blocked=value, backup:() => backup,
     resolve:() => resolveFile({ok:true,arrayBuffer:async () => new ArrayBuffer(3)}),
     reject:() => rejectFile(Error('read failed'))};
 }
@@ -62,3 +62,34 @@ for (const failure of [false,true]) {
 assert.throws(()=>vm.runInContext('restoreStudyBackup(backup.replace(' + JSON.stringify('"rate":1') + ',' + JSON.stringify('"rate":1,"course":"invalid"') + '))',f.context));
 assert.equal(vm.runInContext("store.marks('E1')[0]",f.context),'restored');
 console.log('PASS: desktop backups retain fallback storage/legacy format, validate courses; native catalogue has no asynchronous index race.');
+
+const settle=()=>new Promise(resolve=>setImmediate(resolve));
+const channels=fixture(true);
+await settle();
+assert.equal(channels.get('updateChannelSetting').hidden,false);
+assert.equal(channels.calls[0].args.channel,'beta');
+assert.equal(channels.saved.get('german_update_channel'),'beta');
+channels.get('updateChannel').value='stable';
+channels.get('updateChannel').onchange();
+await settle();
+assert.equal(channels.calls.at(-1).args.channel,'stable');
+assert.equal(channels.saved.get('german_update_channel'),'stable');
+assert.ok(channels.saved.has('german_update_check_beta') && channels.saved.has('german_update_check_stable'));
+assert.equal(channels.get('updateStatus').textContent,'当前无需升级正式版');
+channels.block(true);
+channels.get('updateChannel').value='beta';
+channels.get('updateChannel').onchange();
+assert.equal(channels.get('updateChannel').value,'stable','failed persistence does not silently switch channel');
+const savedChannel=fixture(true,{saved:[['german_update_channel','stable'],['german_update_check_stable',String(Date.now())]]});
+await settle();
+assert.equal(savedChannel.get('updateChannel').value,'stable');
+assert.equal(savedChannel.calls.length,0,'a successful check is throttled only for its own channel');
+const prompted=fixture(true,{invoke:async()=>({version:'4.2.1',notes:'test'})});
+await settle();
+assert.equal(prompted.get('updateDialog').open,true);
+prompted.get('updateChannel').value='stable';
+prompted.get('updateChannel').onchange();
+assert.equal(prompted.get('updateDialog').open,false,'switching closes the previous channel prompt');
+await settle();
+assert.equal(prompted.calls.at(-1).args.channel,'stable');
+console.log('PASS: native update channel selection, persistence, per-channel throttling and prompt invalidation.');

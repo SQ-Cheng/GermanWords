@@ -21,6 +21,14 @@ ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / 'shared/app-config.json'
 
 
+def version_key(version):
+    match = re.fullmatch(r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-beta\.(0|[1-9][0-9]*))?', version)
+    if not match:
+        raise ValueError('Use a release version X.Y.Z or X.Y.Z-beta.N')
+    major, minor, patch, beta = match.groups()
+    return (int(major), int(minor), int(patch), beta is None, int(beta or 0))
+
+
 def sdk_tool(name):
     executable = name + ('.bat' if name == 'apksigner' else '.exe') if os.name == 'nt' else name
     found = shutil.which(executable)
@@ -83,13 +91,18 @@ def read_url(url):
 
 
 def prepare_release(args, config):
-    """Validate every input before any remote write; produce one dual-platform index."""
+    """Validate every input before any remote write; sign each target channel."""
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import padding
 
     version = config['versionName']
-    if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?', version):
-        raise ValueError('Invalid release version')
+    version_key(version)
+    channel = config['channel']
+    if channel not in {'stable', 'beta'} or (channel == 'stable') != ('-' not in version):
+        raise ValueError('Release channel must match the version: stable for X.Y.Z, beta for X.Y.Z-beta.N')
+    channels = ['stable', 'beta'] if channel == 'stable' else ['beta']
+    if config['manifestPaths'] != {'stable':'/update-stable.json', 'beta':'/update-beta.json'}:
+        raise ValueError('Keep both supported update entry points')
     verify_apk(args.apk, config)
     key = serialization.load_pem_private_key(args.key.read_bytes(), password=None)
     numbers = key.public_key().public_numbers()
@@ -122,27 +135,53 @@ def prepare_release(args, config):
         platforms['windows-' + arch] = dict(url=download_url(config, f'{version}/{file.name}'), signature=signature)
         stage(Path(str(source) + '.sig'), file.name + '.sig')
     for file in args.extra:
-        if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9._-]*', file.name) or file.name == Path(config['manifestPath']).name or any(f.name == file.name for f in files):
+        if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9._-]*', file.name) or file.name in {'update-stable.json', 'update-beta.json'} or any(f.name == file.name for f in files):
             raise ValueError('Unsafe or duplicate extra filename')
         stage(file, file.name)
-    payload = json.dumps(release, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
-    signature = key.sign(payload, padding.PKCS1v15(), hashes.SHA256())
-    manifest = args.directory / config['manifestPath'].lstrip('/')
-    # Tauri reads version/platforms; Android verifies the RSA envelope in this same file.
-    index = json.dumps(dict(version=version, notes=args.notes, platforms=platforms,
-        payload=base64.b64encode(payload).decode(), signature=base64.b64encode(signature).decode()),
-        ensure_ascii=False, indent=2).encode('utf-8')
-    if len(index) > 65536:
-        raise ValueError('Update index exceeds the Android 64 KiB limit; shorten the release notes')
-    manifest.write_bytes(index)
-    return files + [manifest], manifest
+    manifests = []
+    for target_channel in channels:
+        release['channel'] = target_channel
+        payload = json.dumps(release, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
+        signature = key.sign(payload, padding.PKCS1v15(), hashes.SHA256())
+        manifest = args.directory / config['manifestPaths'][target_channel].lstrip('/')
+        # A stable release also reaches old beta clients, whose signed channel must remain beta.
+        index = json.dumps(dict(version=version, channel=target_channel, notes=args.notes, platforms=platforms,
+            payload=base64.b64encode(payload).decode(), signature=base64.b64encode(signature).decode()),
+            ensure_ascii=False, indent=2).encode('utf-8')
+        if len(index) > 65536:
+            raise ValueError('Update index exceeds the Android 64 KiB limit; shorten the release notes')
+        manifest.write_bytes(index)
+        manifests.append(manifest)
+    return files + manifests, manifests
 
 
 def download_url(config, path):
     return config['shareUrl'] + 'files/?p=' + urllib.parse.quote('/' + path, safe='') + '&raw=1'
 
 
-def upload_files(files, manifest, upload_url, config):
+def select_manifests(manifests, published, config):
+    """Never move an entry point backwards; a newer beta survives an older stable release."""
+    selected = []
+    for manifest in manifests:
+        previous = published.get(manifest.name)
+        if previous:
+            envelope = json.loads(previous)
+            release = json.loads(base64.b64decode(envelope['payload'], validate=True))
+            if envelope['version'] != release['versionName']:
+                raise ValueError('Published index versions differ')
+            if release['versionCode'] > config['versionCode'] or (envelope['version'] != config['versionName'] and release['versionCode'] == config['versionCode']):
+                raise ValueError('Increment versionCode across all channels')
+            newer = version_key(envelope['version']) > version_key(config['versionName'])
+            if newer and config['channel'] == 'stable' and manifest.name == 'update-beta.json':
+                print('Keeping the newer beta entry point')
+                continue
+            if newer:
+                raise ValueError('Published entry point is newer; increment the version and versionCode')
+        selected.append(manifest)
+    return selected
+
+
+def upload_files(files, manifests, upload_url, config):
     import ast
     upload = urllib.parse.urlparse(upload_url)
     host = urllib.parse.urlparse(config['shareUrl']).hostname
@@ -164,12 +203,18 @@ def upload_files(files, manifest, upload_url, config):
     share_token = urllib.parse.urlparse(config['shareUrl']).path.rstrip('/').split('/')[-1]
     listing_url = f'https://{upload.netloc}/api/v2.1/share-links/{share_token}/dirents/?path='
     root = json.loads(read_url(listing_url + '%2F'))['dirent_list']
+    root_names = {entry['file_name'] for entry in root if not entry['is_dir']}
+    published = {manifest.name:read_url(download_url(config, manifest.name) + '&t=' + uuid.uuid4().hex)
+                 for manifest in manifests if manifest.name in root_names}
+    selected = select_manifests(manifests, published, config)
+    # No index is written until every immutable package has passed readback verification.
+    files = [file for file in files if file not in manifests] + selected
     version = config['versionName']
     version_exists = any(e['is_dir'] and e['folder_name'] == version for e in root)
     existing = json.loads(read_url(listing_url + urllib.parse.quote('/' + version, safe='')))['dirent_list'] if version_exists else []
     existing_names = {e['file_name'] for e in existing if not e['is_dir']}
     for file in files:
-        is_index = file == manifest
+        is_index = file in manifests
         path = file.name if is_index else f'{version}/{file.name}'
         data = file.read_bytes()
         url = download_url(config, path) + '&t=' + uuid.uuid4().hex
@@ -211,12 +256,12 @@ def main():
     if not args.prepare_only and not args.upload_url:
         parser.error('--upload-url or GERMANWORDS_RELEASE_UPLOAD_URL is required')
     config = json.loads(CONFIG.read_text(encoding='utf-8'))
-    files, manifest = prepare_release(args, config)
+    files, manifests = prepare_release(args, config)
     if args.prepare_only:
-        print(f'Prepared {manifest}; nothing uploaded')
+        print(f'Prepared {", ".join(str(file) for file in manifests)}; nothing uploaded')
     else:
         # The root index is always last, after all immutable packages were read back.
-        upload_files(files, manifest, args.upload_url, config)
+        upload_files(files, manifests, args.upload_url, config)
 
 
 if __name__ == '__main__':

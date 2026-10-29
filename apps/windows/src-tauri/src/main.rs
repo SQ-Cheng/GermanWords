@@ -42,11 +42,20 @@ fn restricted_client(client: reqwest::ClientBuilder, host: String) -> reqwest::C
         }))
 }
 
+fn release_allowed(channel: &str, release: &tauri_plugin_updater::RemoteRelease) -> bool {
+    channel == "beta" || (channel == "stable" && release.version.pre.is_empty())
+}
+
 #[tauri::command]
 async fn check_update(
     app: tauri::AppHandle,
     pending: State<'_, PendingUpdate>,
+    channel: String,
 ) -> Result<Option<UpdateInfo>, String> {
+    if channel != "stable" && channel != "beta" {
+        return Err("更新通道无效".into());
+    }
+    *pending.0.lock().map_err(|_| "更新状态不可用")? = None;
     let config: serde_json::Value = serde_json::from_str(CONFIG).map_err(|e| e.to_string())?;
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -59,12 +68,18 @@ async fn check_update(
         return Err("更新来源必须使用 HTTPS".into());
     }
     let redirect_host = host.clone();
-    let path = config["manifestPath"].as_str().ok_or("更新路径无效")?;
+    let path = config["manifestPaths"][&channel]
+        .as_str()
+        .ok_or("更新路径无效")?;
     let endpoint = format!("{share}files/?p={path}&raw=1&t={now}")
         .parse()
         .map_err(|_| "更新地址无效")?;
     let update = app
         .updater_builder()
+        .version_comparator({
+            let channel = channel.clone();
+            move |current, release| release.version > current && release_allowed(&channel, &release)
+        })
         .endpoints(vec![endpoint])
         .map_err(|e| e.to_string())?
         .timeout(Duration::from_secs(30))
@@ -82,6 +97,14 @@ async fn check_update(
         .await
         .map_err(|e| e.to_string())?;
     if let Some(ref release) = update {
+        if release
+            .raw_json
+            .get("channel")
+            .and_then(|value| value.as_str())
+            .is_some_and(|value| value != channel)
+        {
+            return Err("更新通道不匹配".into());
+        }
         if !trusted_update_url(&release.download_url, &host, 0) {
             return Err("安装包来源无效".into());
         }
@@ -135,6 +158,22 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::trusted_update_url;
+
+    #[test]
+    fn stable_rejects_prereleases_and_beta_accepts_both() {
+        for version in ["4.2.1-beta.5", "4.2.1", "4.3.0-beta.1"] {
+            let release = serde_json::from_value(serde_json::json!({
+                "version":version,"platforms":{}
+            }))
+            .unwrap();
+            assert!(super::release_allowed("beta", &release));
+            assert_eq!(
+                super::release_allowed("stable", &release),
+                version == "4.2.1"
+            );
+            assert!(!super::release_allowed("invalid", &release));
+        }
+    }
 
     #[test]
     fn official_updater_accepts_the_combined_index() {

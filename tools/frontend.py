@@ -22,6 +22,7 @@ def prepare(platform):
     html = html.replace('<!-- built-in library -->', '<script src="library-data.js"></script>')
     if platform == 'windows':
         native = ROOT / 'apps/windows/frontend'
+        html = html.replace('<!-- update-channel -->', '<label id="updateChannelSetting" class="theme-setting" for="updateChannel" hidden>接收更新<select id="updateChannel" data-default="' + config['channel'] + '"><option value="stable">正式版</option><option value="beta">测试版（含正式版）</option></select></label>')
         html = html.replace('<!-- platform-styles -->', '<link rel="stylesheet" href="../../shared/feedback.css">')
         html = html.replace('<!-- platform-ui -->', (native / 'update-dialog.html').read_text(encoding='utf-8'))
         html = html.replace('<script src="browser.js"></script>', '<script src="../../shared/feedback.js"></script><script src="desktop.js"></script>')

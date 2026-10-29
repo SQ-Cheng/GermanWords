@@ -83,7 +83,9 @@ class ReleaseInputs(unittest.TestCase):
             secret.write_bytes(key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
             args = SimpleNamespace(apk=apk, key=secret, directory=folder/'staged', extra=[], installer=['x86_64='+str(installer)], notes='test')
             with patch.object(publisher, 'verify_apk'), patch.object(publisher, 'verify_installer', return_value='signed'):
-                files, index = publisher.prepare_release(args, config)
+                files, indexes = publisher.prepare_release(args, config)
+            self.assertEqual(len(indexes), 1)
+            index = indexes[0]
             self.assertEqual(files[-1], index)
             envelope = json.loads(index.read_text(encoding='utf-8'))
             payload = base64.b64decode(envelope['payload'])
@@ -93,6 +95,17 @@ class ReleaseInputs(unittest.TestCase):
             self.assertEqual(envelope['platforms']['windows-x86_64']['signature'], 'signed')
             self.assertIn(urllib.parse.quote('/'+config['versionName']+'/', safe=''), envelope['platforms']['windows-x86_64']['url'])
             self.assertEqual(envelope['version'], release['versionName'])
+            config.update(channel='stable', versionName='4.2.1')
+            with patch.object(publisher, 'verify_apk'), patch.object(publisher, 'verify_installer', return_value='signed'):
+                files, indexes = publisher.prepare_release(args, config)
+            self.assertEqual([index.name for index in indexes], ['update-stable.json', 'update-beta.json'])
+            for index, channel in zip(indexes, ['stable', 'beta']):
+                envelope = json.loads(index.read_text(encoding='utf-8'))
+                payload = base64.b64decode(envelope['payload'])
+                key.public_key().verify(base64.b64decode(envelope['signature']), payload, padding.PKCS1v15(), hashes.SHA256())
+                self.assertEqual(json.loads(payload)['channel'], channel)
+                self.assertEqual(json.loads(payload)['versionName'], '4.2.1')
+                self.assertEqual(envelope['channel'], channel)
             args.notes = 'long notes' * 10000
             with patch.object(publisher, 'verify_apk'), patch.object(publisher, 'verify_installer', return_value='signed'):
                 with self.assertRaisesRegex(ValueError, '64 KiB'): publisher.prepare_release(args, config)
@@ -119,7 +132,7 @@ class ReleaseInputs(unittest.TestCase):
                 return io.BytesIO(json.dumps([dict(name=name)]).encode())
             # A hexadecimal token has the same shape as a real writable share.
             with patch.object(publisher, 'read_url', side_effect=lambda url: read(url.replace('/d/abcdef/', '/d/write/'))), patch.object(publisher.urllib.request, 'urlopen', side_effect=post):
-                publisher.upload_files([apk,index],index,'https://cloud.tsinghua.edu.cn/d/abcdef/',self.config)
+                publisher.upload_files([apk,index],[index],'https://cloud.tsinghua.edu.cn/d/abcdef/',self.config)
             self.assertIn(('\r\n'+version+'/\r\n').encode(), sent[0])
             self.assertIn(b'name="parent_dir"\r\n\r\n/Release/', sent[0])
             self.assertNotIn(b'name="relative_path"',sent[-1])
@@ -137,14 +150,17 @@ class ReleaseInputs(unittest.TestCase):
                 if '/dirents/' in url: return b'{"dirent_list":[{"is_dir":false,"file_name":"package.apk"}]}'
                 return b'old'
             with patch.object(publisher,'read_url',side_effect=read), patch.object(publisher.urllib.request,'urlopen') as post:
-                with self.assertRaises(ValueError): publisher.upload_files([package,index],index,'https://cloud.tsinghua.edu.cn/d/abcdef/',self.config)
+                with self.assertRaises(ValueError): publisher.upload_files([package,index],[index],'https://cloud.tsinghua.edu.cn/d/abcdef/',self.config)
                 post.assert_not_called()
 
     def test_existing_release_reuses_files_and_only_refreshes_index(self):
         import io
         with tempfile.TemporaryDirectory() as directory:
             package = Path(directory)/'package.apk'; package.write_bytes(b'apk')
-            index = Path(directory)/'update-beta.json'; index.write_bytes(b'index')
+            index = Path(directory)/'update-beta.json'
+            metadata = dict(version=self.config['versionName'], payload=base64.b64encode(json.dumps(dict(versionName=self.config['versionName'],versionCode=self.config['versionCode'])).encode()).decode())
+            data = json.dumps(metadata).encode()
+            index.write_bytes(data)
             def read(url):
                 if '/d/abcdef/' in url: return b"dirPath: '/Release/', canUpload: true"
                 if '/upload/?' in url: return b'{"upload_link":"https://cloud.tsinghua.edu.cn/upload/temporary"}'
@@ -152,11 +168,66 @@ class ReleaseInputs(unittest.TestCase):
                     return json.dumps(dict(dirent_list=[dict(is_dir=True,folder_name='older-version'),
                         dict(is_dir=True,folder_name=self.config['versionName']),dict(is_dir=False,file_name=index.name)])).encode()
                 if '/dirents/' in url: return b'{"dirent_list":[{"is_dir":false,"file_name":"package.apk"}]}'
-                return b'index' if 'update-beta.json' in url else b'apk'
+                return data if 'update-beta.json' in url else b'apk'
             with patch.object(publisher,'read_url',side_effect=read), patch.object(publisher.urllib.request,'urlopen',return_value=io.BytesIO(b'[{"name":"update-beta.json"}]')) as post:
-                publisher.upload_files([package,index],index,'https://cloud.tsinghua.edu.cn/d/abcdef/',self.config)
+                publisher.upload_files([package,index],[index],'https://cloud.tsinghua.edu.cn/d/abcdef/',self.config)
                 self.assertEqual(post.call_count,1)
                 self.assertIn(b'filename="update-beta.json"',post.call_args.args[0].data)
+
+    def test_channel_publication_never_regresses_an_entry_point(self):
+        stable, beta = Path('update-stable.json'), Path('update-beta.json')
+        config = dict(self.config, channel='stable', versionName='4.2.1', versionCode=20)
+        def index(version, code):
+            return json.dumps(dict(version=version,payload=base64.b64encode(json.dumps(dict(versionName=version,versionCode=code)).encode()).decode())).encode()
+        for version, code, expected in [('4.2.1-beta.4',19,[stable,beta]), ('4.3.0-beta.1',19,[stable]), ('4.2.1',20,[stable,beta])]:
+            selected = publisher.select_manifests([stable,beta],{beta.name:index(version,code)},config)
+            self.assertEqual(selected,expected)
+        for version, code in [('4.3.0',21), ('4.2.0',21), ('4.2.0',20)]:
+            with self.assertRaises(ValueError):
+                publisher.select_manifests([stable,beta],{stable.name:index(version,code)},config)
+        with self.assertRaises(ValueError):
+            publisher.select_manifests([stable,beta],{beta.name:index('4.3.0-beta.1',21)},config)
+        with self.assertRaises(ValueError):
+            publisher.select_manifests([beta],{beta.name:index('4.2.1',20)},dict(config,channel='beta',versionName='4.2.1-beta.5',versionCode=21))
+        self.assertLess(publisher.version_key('4.2.1-beta.9'),publisher.version_key('4.2.1-beta.10'))
+        self.assertLess(publisher.version_key('4.2.1-beta.10'),publisher.version_key('4.2.1'))
+        for invalid in ['4.2', '4.2.1-beta', '4.2.1-beta.01', '4.2.01']:
+            with self.assertRaises(ValueError): publisher.version_key(invalid)
+
+    def test_stable_upload_finishes_packages_before_both_indexes(self):
+        import io
+        config = dict(self.config, channel='stable', versionName='4.2.1')
+        with tempfile.TemporaryDirectory() as directory:
+            package, stable, beta = (Path(directory)/name for name in ['package.apk','update-stable.json','update-beta.json'])
+            package.write_bytes(b'apk');stable.write_bytes(b'stable');beta.write_bytes(b'beta')
+            uploaded = []
+            def read(url):
+                if '/d/abcdef/' in url:return b"dirPath: '/Release/', canUpload: true"
+                if '/upload/?' in url:return b'{"upload_link":"https://cloud.tsinghua.edu.cn/upload/temporary"}'
+                if '/dirents/' in url:return b'{"dirent_list":[]}'
+                return b'stable' if 'update-stable.json' in url else b'beta' if 'update-beta.json' in url else b'apk'
+            def post(request, **kwargs):
+                name = 'update-stable.json' if b'filename="update-stable.json"' in request.data else 'update-beta.json' if b'filename="update-beta.json"' in request.data else 'package.apk'
+                uploaded.append(name)
+                return io.BytesIO(json.dumps([dict(name=name)]).encode())
+            with patch.object(publisher,'read_url',side_effect=read), patch.object(publisher.urllib.request,'urlopen',side_effect=post):
+                publisher.upload_files([stable,package,beta],[stable,beta],'https://cloud.tsinghua.edu.cn/d/abcdef/',config)
+            self.assertEqual(uploaded,['package.apk','update-stable.json','update-beta.json'])
+            uploaded.clear()
+            def broken_read(url):
+                if 'package.apk' in url:return b'bad readback'
+                return read(url)
+            with patch.object(publisher,'read_url',side_effect=broken_read), patch.object(publisher.urllib.request,'urlopen',side_effect=post):
+                with self.assertRaises(RuntimeError):
+                    publisher.upload_files([package,stable,beta],[stable,beta],'https://cloud.tsinghua.edu.cn/d/abcdef/',config)
+            self.assertEqual(uploaded,['package.apk'],'failed package readback never commits an index')
+
+    def test_build_channel_and_version_must_match_before_signing(self):
+        for version, channel in [('4.2.1-beta.5','stable'), ('4.2.1','beta'), ('4.2.1','unknown')]:
+            with patch.object(publisher,'verify_apk') as verify:
+                with self.assertRaises(ValueError):
+                    publisher.prepare_release(None,dict(self.config,versionName=version,channel=channel))
+                verify.assert_not_called()
 
     def test_sdk_receives_filename_and_working_directory(self):
         with tempfile.TemporaryDirectory() as directory:

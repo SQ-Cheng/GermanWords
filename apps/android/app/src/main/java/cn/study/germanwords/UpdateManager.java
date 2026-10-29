@@ -30,34 +30,61 @@ final class UpdateManager implements AutoCloseable {
     private volatile boolean closed;
     private JSONObject config;
     private boolean permissionPrompt;
+    private AlertDialog updateDialog;
 
-    UpdateManager(MainActivity activity) { this.activity=activity; }
+    UpdateManager(MainActivity activity) {
+        this.activity=activity;
+        try(InputStream in=activity.getAssets().open("web/app-config.json")) {
+            config=new JSONObject(new String(read(in,65536),StandardCharsets.UTF_8));
+        } catch(Exception e) { config=new JSONObject(); }
+        if(!activity.getSharedPreferences("updates",0).contains("channel")) {
+            activity.getSharedPreferences("updates",0).edit().putString("channel",channel()).apply();
+        }
+    }
+
+    String channel() {
+        String value=activity.getSharedPreferences("updates",0).getString("channel",config.optString("channel","stable"));
+        return "beta".equals(value)?"beta":"stable";
+    }
+    synchronized boolean setChannel(String value) {
+        if(closed || busy.get() || activity.getSharedPreferences("updates",0).contains("pendingRelease")
+                || !("stable".equals(value) || "beta".equals(value)))return false;
+        if(!activity.getSharedPreferences("updates",0).edit().putString("channel",value).commit())return false;
+        ui(() -> { if(updateDialog!=null)updateDialog.dismiss(); check(true); });
+        return true;
+    }
 
     private void ui(Runnable action) {
         activity.runOnUiThread(() -> { if(!closed && !activity.isFinishing()) action.run(); });
     }
     private void message(String text) { ui(() -> Toast.makeText(activity,text,Toast.LENGTH_LONG).show()); }
-    void check(boolean manual) {
+    synchronized void check(boolean manual) {
         if(activity.getSharedPreferences("updates",0).contains("pendingRelease")) { resumeInstall(); return; }
         if(closed || !busy.compareAndSet(false,true)) return;
+        String channel=channel();
         worker.execute(() -> {
             try {
-                if(!manual && System.currentTimeMillis()-activity.getSharedPreferences("updates",0).getLong("lastCheck",0)<86400000L) return;
-                if(config==null)try(InputStream in=activity.getAssets().open("web/app-config.json")) {
-                    config=new JSONObject(new String(read(in,65536),StandardCharsets.UTF_8));
+                if(!manual && System.currentTimeMillis()-activity.getSharedPreferences("updates",0).getLong("lastCheck_"+channel,0)<86400000L) return;
+                JSONObject release=verifyRelease(download(config.getJSONObject("manifestPaths").getString(channel),65536),channel);
+                PackageInfo installed=installed();
+                boolean newer=compareVersions(release.getString("versionName"),installed.versionName)>0 && release.getLong("versionCode")>version(installed);
+                activity.getSharedPreferences("updates",0).edit().putLong("lastCheck_"+channel,System.currentTimeMillis()).apply();
+                if(!newer) {
+                    if(manual)message("stable".equals(channel)?"当前无需升级正式版":"当前无需升级"); return;
                 }
-                JSONObject release=verifyRelease(download(config.getString("manifestPath"),65536));
-                activity.getSharedPreferences("updates",0).edit().putLong("lastCheck",System.currentTimeMillis()).apply();
-                if(release.getLong("versionCode")<=version(installed())) { if(manual)message("已是最新测试版本："+installed().versionName); return; }
-                ui(() -> new AlertDialog.Builder(activity).setTitle("发现新版本 "+release.optString("versionName"))
+                ui(() -> {
+                    if(!channel.equals(channel()))return;
+                    if(updateDialog!=null)updateDialog.dismiss();
+                    updateDialog=new AlertDialog.Builder(activity).setTitle("发现新版本 "+release.optString("versionName"))
                         .setMessage(release.optString("notes")+"\n\n下载后由系统确认安装，学习进度保留。")
-                        .setNegativeButton("稍后",null).setPositiveButton("下载更新",(dialog,which) -> fetchPackage(release)).show());
+                        .setNegativeButton("稍后",null).setPositiveButton("下载更新",(dialog,which) -> fetchPackage(release)).show();
+                });
             } catch(Exception e) { if(manual)message("暂时无法检查更新，请稍后重试"); }
             finally { busy.set(false); }
         });
     }
 
-    private JSONObject verifyRelease(byte[] data) throws Exception {
+    private JSONObject verifyRelease(byte[] data,String channel) throws Exception {
         JSONObject envelope=new JSONObject(new String(data,StandardCharsets.UTF_8));
         byte[] payload=Base64.decode(envelope.getString("payload"),Base64.DEFAULT);
         JSONObject key=config.getJSONObject("publicKey");
@@ -68,10 +95,11 @@ final class UpdateManager implements AutoCloseable {
         verifier.initVerify(publicKey); verifier.update(payload);
         if(!verifier.verify(Base64.decode(envelope.getString("signature"),Base64.DEFAULT))) throw new IOException("更新信息签名无效");
         JSONObject release=new JSONObject(new String(payload,StandardCharsets.UTF_8));
-        if(release.getInt("schema")!=1 || !config.getString("channel").equals(release.getString("channel"))) throw new IOException("更新通道不匹配");
+        if(release.getInt("schema")!=1 || !channel.equals(release.getString("channel"))) throw new IOException("更新通道不匹配");
         JSONObject asset=release.getJSONObject("android");
         String name=release.getString("versionName");
-        if(!name.matches("[0-9]+\\.[0-9]+\\.[0-9]+(?:-[a-zA-Z0-9.-]+)?")
+        if("stable".equals(channel) && !name.matches("[0-9]+\\.[0-9]+\\.[0-9]+"))throw new IOException("正式版通道包含测试版本");
+        if(!name.matches("[0-9]+\\.[0-9]+\\.[0-9]+(?:-beta\\.[0-9]+)?")
                 || !asset.getString("file").equals(name+"/GermanWords-Android-"+name+".apk")
                 || !asset.getString("sha256").matches("[a-f0-9]{64}") || asset.getLong("size")<=0 || asset.getLong("size")>33554432)throw new IOException("安装包信息无效");
         return release;
@@ -87,9 +115,22 @@ final class UpdateManager implements AutoCloseable {
     }
     private static int signatureFlags() { return Build.VERSION.SDK_INT>=28?PackageManager.GET_SIGNING_CERTIFICATES:PackageManager.GET_SIGNATURES; }
     private static long version(PackageInfo info) { return Build.VERSION.SDK_INT>=28?info.getLongVersionCode():info.versionCode; }
+    static int compareVersions(String left,String right) {
+        if(!left.matches("[0-9]+\\.[0-9]+\\.[0-9]+(?:-beta\\.[0-9]+)?")
+                || !right.matches("[0-9]+\\.[0-9]+\\.[0-9]+(?:-beta\\.[0-9]+)?"))throw new IllegalArgumentException("版本格式无效");
+        String[] a=left.split("-beta\\.",2), b=right.split("-beta\\.",2);
+        String[] x=a[0].split("\\."), y=b[0].split("\\.");
+        for(int i=0;i<3;i++) {
+            int compared=Long.compare(Long.parseLong(x[i]),Long.parseLong(y[i]));
+            if(compared!=0)return compared;
+        }
+        if(a.length!=b.length)return Integer.compare(b.length,a.length);
+        return a.length==1?0:Long.compare(Long.parseLong(a[1]),Long.parseLong(b[1]));
+    }
     private static android.content.pm.Signature[] signers(PackageInfo info) { return Build.VERSION.SDK_INT>=28?info.signingInfo.getApkContentsSigners():info.signatures; }
 
-    private void fetchPackage(JSONObject release) {
+    private synchronized void fetchPackage(JSONObject release) {
+        if(!channel().equals(release.optString("channel")))return;
         if(closed || !busy.compareAndSet(false,true))return;
         message("正在下载更新，仍可继续学习…");
         worker.execute(() -> {
@@ -121,7 +162,7 @@ final class UpdateManager implements AutoCloseable {
         StringBuilder hash=new StringBuilder();for(byte value:digest.digest())hash.append(String.format(java.util.Locale.ROOT,"%02x",value&255));
         if(!hash.toString().equals(asset.getString("sha256")))throw new IOException("安装包校验失败");
         PackageInfo archive=activity.getPackageManager().getPackageArchiveInfo(file.getPath(),signatureFlags());
-        if(archive==null || !activity.getPackageName().equals(archive.packageName) || version(archive)!=release.getLong("versionCode") || version(archive)<=version(installed()) || !Arrays.equals(signers(archive),signers(installed())))throw new IOException("安装包版本、包名或签名不匹配");
+        if(archive==null || !activity.getPackageName().equals(archive.packageName) || !release.getString("versionName").equals(archive.versionName) || version(archive)!=release.getLong("versionCode") || version(archive)<=version(installed()) || compareVersions(archive.versionName,installed().versionName)<=0 || !Arrays.equals(signers(archive),signers(installed())))throw new IOException("安装包版本、包名或签名不匹配");
     }
     // Persist only a verified package, before leaving the Activity for system permission UI.
     private synchronized boolean savePending(File file,JSONObject release) throws IOException {

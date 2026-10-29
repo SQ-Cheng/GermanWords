@@ -86,6 +86,8 @@ APK：`app/build/outputs/apk/debug/app-debug.apk`。这是使用本机 Android �
 
 也可扫描使用说明末尾的问卷星二维码填写反馈；说明书提供 PDF 和高清 PNG 两种格式。
 
-云盘更新测试与维护见 [更新说明](../../docs/updates.md)。版本统一维护于 `shared/app-config.json`，Gradle 直接读取；更新检查、下载、验签和安装由 `UpdateManager` / `UpdateReceiver` 完成，WebView 仍只能读取本地资源。
+在「词库与设置 → 接收更新」选择「正式版」或「测试版（含正式版）」，切换后立即检查，各通道分别计算成功检查后的 24 小时间隔。首次默认跟随安装包通道，之后保存用户选择，覆盖升级不重置；切回正式版不会降级较高测试版。下载或存在待安装包时暂不允许切换。
+
+更新测试与维护见 [更新说明](../../docs/updates.md)。版本统一维护于 `shared/app-config.json`，Gradle 直接读取；更新检查、下载、验签和安装由 `UpdateManager` / `UpdateReceiver` 完成，WebView 仍只能读取本地资源。
 
 已下载更新在等待系统安装来源授权时保留待安装记录。返回应用或重新启动后重新校验缓存的大小、哈希、版本、包名和签名再提交系统安装；缓存丢失或损坏则清理记录并提示重新检查。取消授权提示也会清理该待安装包。

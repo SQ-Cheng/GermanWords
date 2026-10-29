@@ -22,6 +22,12 @@ function syncSystemTheme() {
   if (window.Android) AppTheme.setSystemDark(Android.isSystemDark());
 }
 syncSystemTheme();
+const updateChannel = document.getElementById('updateChannel');
+updateChannel.value = Android.getUpdateChannel();
+updateChannel.onchange = () => {
+  if (!Android.setUpdateChannel(updateChannel.value)) notify('暂时无法切换，请等待当前更新完成后重试', 'warn');
+  updateChannel.value = Android.getUpdateChannel();
+};
 function changePlaybackRate(value) {
   const rate = Playback.setRate(value);
   document.getElementById('playbackRate').value = String(rate);

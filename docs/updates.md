@@ -10,6 +10,7 @@
 
 ```text
 Release/
+  update-stable.json
   update-beta.json
   <version>/
     GermanWords-Android-<version>.apk
@@ -21,11 +22,15 @@ Release/
 
 ## 更新索引与客户端
 
-`update-beta.json` 同时包含 Windows 的 `version` / `notes` / `platforms` 和 Android 的 RSA `payload` / `signature`。payload 是 Base64 编码的 UTF-8 JSON，包含 schema、channel、versionName、versionCode、notes 与 android 安装包信息；其原始字节由 SHA256withRSA 签名。APK 路径必须为 `<version>/GermanWords-Android-<version>.apk`，并带大小与 SHA-256。Windows 的各架构条目提供下载 URL 与 Tauri 安装包签名，不共用 Android 的安装协议。
+两个索引格式相同，包含 Windows 的 `version` / `channel` / `notes` / `platforms` 和 Android 的 RSA `payload` / `signature`。payload 是 Base64 编码的 UTF-8 JSON，包含 schema、channel、versionName、versionCode、notes 与 android 安装包信息；其原始字节由 SHA256withRSA 签名。APK 路径必须为 `<version>/GermanWords-Android-<version>.apk`，并带大小与 SHA-256。Windows 的各架构条目提供下载 URL 与 Tauri 安装包签名，不共用 Android 的安装协议。
 
-Android 校验载荷 schema 和 channel，以递增 versionCode 判断更新；Windows 按语义版本比较顶层 version，不额外校验 Android 载荷中的 channel。当前没有用户可切换的 stable/beta 双通道设置；版本名后缀、通道字段和 GitHub Pre-release 标记彼此独立。
+「词库与设置 → 接收更新」可选择「正式版」或「测试版（含正式版）」。两者分别读取 `shared/app-config.json` 的 `manifestPaths.stable` / `.beta`，沿用同一只读分享目录。首次使用默认采用安装包配置的 `channel`，之后保存用户选择，覆盖升级不重置；更新偏好不属于学习备份。反馈中的 app.channel 仍表示安装包的构建通道。
 
-两端启动时尝试后台检查，距上次成功检查不足 24 小时则跳过自动检查，手动检查不受此限制。没有常驻定时轮询；检查失败不更新成功时间，无网络不影响学习。Android 返回前台只恢复待安装流程。发现新版后展示说明，由用户确认下载。
+正式入口只发布 `X.Y.Z`；测试入口接收 `X.Y.Z-beta.N` 及后续正式版。发布正式版时生成两份索引，指向同一批安装包，但各自签名载荷的 channel 必须分别是 stable / beta，兼容旧 Android 客户端。若测试入口已有更高版本，维护工具保留它。版本后缀、构建默认通道、索引载荷通道和 GitHub Pre-release 标记须按维护要求配套设置。
+
+Android 校验签名载荷 schema 和所选 channel，同时要求 versionCode 与版本名都高于已安装版；Windows 使用官方插件按语义版本比较，并限制正式通道不接受预发布版本。切到正式通道不会降级已安装的更高测试版，而是等待更高正式版。Windows 接受缺少顶层 channel 的旧 beta 索引，有该字段时要求匹配所选通道。
+
+两端启动时尝试后台检查，每个通道分别记录成功时间，距上次成功检查不足 24 小时则跳过自动检查；手动检查和切换通道不受此限制。切换后立即检查并撤销旧通道提示；下载、安装或 Android 存在待安装包时暂不允许切换。没有常驻定时轮询；检查失败不更新成功时间，无网络不影响学习。入口不存在或不可读属于检查失败，不显示为已是最新。Android 返回前台只恢复待安装流程。发现新版后展示说明，由用户确认下载。
 
 - Android 下载后校验大小、SHA-256、包名、versionCode 和应用签名，再交给系统 PackageInstaller。等待安装来源授权时保存待安装状态，返回或重启时重新校验缓存后继续，取消会清理。
 - Windows 用 Tauri 官方更新插件验签，成功后关闭应用并运行 NSIS 安装器。学习数据存放在独立用户目录。
@@ -36,7 +41,7 @@ Android 校验载荷 schema 和 channel，以递增 versionCode 判断更新；W
 
 ## 发布器边界
 
-`tools/publish-update.py` 使用 Android SDK 和官方 Minisign 校验输入，再生成双端索引。APK 不超过 32 MiB，完整索引不超过 64 KiB。上传 API 通过 `relative_path` 创建版本子目录，工具从客户端只读入口读回核验全部文件，最后替换根索引；同名版本包内容不可变。GitHub 发布独立执行。具体命令与迁移要求见维护要求。
+`tools/publish-update.py` 使用 Android SDK 和官方 Minisign 校验输入，再按构建通道生成索引：测试版仅更新 beta，正式版更新 stable 并同步 beta。APK 不超过 32 MiB，每份索引不超过 64 KiB。上传前读取目标旧索引，拒绝版本或 versionCode 回退；正式版同步 beta 时保留更高测试版本。上传 API 通过 `relative_path` 创建版本子目录，工具从客户端只读入口读回核验全部安装包后，最后替换根索引并逐一读回；同名版本包内容不可变。GitHub 发布独立执行。具体命令与迁移要求见维护要求。
 
 ## 意见反馈
 

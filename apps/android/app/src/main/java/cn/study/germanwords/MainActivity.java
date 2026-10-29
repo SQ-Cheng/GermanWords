@@ -96,8 +96,8 @@ public class MainActivity extends Activity {
                 return true;
             }
         });
-        web.loadUrl("https://" + HOST + "/assets/web/index.html");
         updates=new UpdateManager(this);
+        web.loadUrl("https://" + HOST + "/assets/web/index.html");
         updates.check(false);
     }
 
@@ -168,6 +168,8 @@ public class MainActivity extends Activity {
             });
         }
         @JavascriptInterface public void checkForUpdates() { runOnUiThread(() -> updates.check(true)); }
+        @JavascriptInterface public String getUpdateChannel() { return updates.channel(); }
+        @JavascriptInterface public boolean setUpdateChannel(String channel) { return updates.setChannel(channel); }
         @JavascriptInterface public void setPlaybackRate(double rate) {
             float valid = rate==0.75 || rate==1 || rate==1.25 || rate==1.5 ? (float)rate : 1f;
             runOnUiThread(() -> {

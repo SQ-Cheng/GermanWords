@@ -55,17 +55,22 @@ final class UpdateChecks {
                 .put("modulus",Base64.encodeToString(key.getModulus().toByteArray(),Base64.NO_WRAP))
                 .put("exponent",Base64.encodeToString(key.getPublicExponent().toByteArray(),Base64.NO_WRAP)));
         Field field=UpdateManager.class.getDeclaredField("config");field.setAccessible(true);field.set(manager,config);
-        Method verify=UpdateManager.class.getDeclaredMethod("verifyRelease",byte[].class);verify.setAccessible(true);
+        Method verify=UpdateManager.class.getDeclaredMethod("verifyRelease",byte[].class,String.class);verify.setAccessible(true);
         JSONObject release=new JSONObject().put("schema",1).put("channel","beta").put("versionCode",10).put("versionName","4.2.0-beta.6")
                 .put("android",new JSONObject().put("file","4.2.0-beta.6/GermanWords-Android-4.2.0-beta.6.apk").put("size",1).put("sha256",new String(new char[64]).replace('\0','0')));
         byte[] payload=release.toString().getBytes(StandardCharsets.UTF_8);
         Signature signer=Signature.getInstance("SHA256withRSA");signer.initSign(pair.getPrivate());signer.update(payload);
         JSONObject envelope=new JSONObject().put("payload",Base64.encodeToString(payload,Base64.NO_WRAP))
                 .put("signature",Base64.encodeToString(signer.sign(),Base64.NO_WRAP));
-        verify.invoke(manager,(Object)envelope.toString().getBytes(StandardCharsets.UTF_8));
+        verify.invoke(manager,envelope.toString().getBytes(StandardCharsets.UTF_8),"beta");
+        try { verify.invoke(manager,envelope.toString().getBytes(StandardCharsets.UTF_8),"stable");throw new IOException("Wrong channel accepted"); }
+        catch(InvocationTargetException expected) { if(!(expected.getCause() instanceof IOException))throw expected; }
+        if(UpdateManager.compareVersions("4.2.1","4.2.1-beta.4")<=0
+                || UpdateManager.compareVersions("4.2.1-beta.10","4.2.1-beta.9")<=0
+                || UpdateManager.compareVersions("4.2.1","4.3.0-beta.1")>=0)throw new IOException("Update version ordering");
         release.put("versionCode",99);
         envelope.put("payload",Base64.encodeToString(release.toString().getBytes(StandardCharsets.UTF_8),Base64.NO_WRAP));
-        try { verify.invoke(manager,(Object)envelope.toString().getBytes(StandardCharsets.UTF_8));throw new IOException("Unsigned metadata change accepted"); }
+        try { verify.invoke(manager,envelope.toString().getBytes(StandardCharsets.UTF_8),"beta");throw new IOException("Unsigned metadata change accepted"); }
         catch(InvocationTargetException expected) { if(!(expected.getCause() instanceof IOException))throw expected; }
     }
 }
