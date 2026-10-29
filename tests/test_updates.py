@@ -75,7 +75,8 @@ class ReleaseInputs(unittest.TestCase):
         from cryptography.hazmat.primitives.asymmetric import rsa, padding
         key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         number = key.public_key().public_numbers()
-        config = dict(self.config, publicKey=dict(modulus=base64.b64encode(number.n.to_bytes(256, 'big')).decode(), exponent='AQAB'))
+        config = dict(self.config, channel='beta', versionName='4.2.1-beta.4',
+                      publicKey=dict(modulus=base64.b64encode(number.n.to_bytes(256, 'big')).decode(), exponent='AQAB'))
         with tempfile.TemporaryDirectory() as directory:
             folder = Path(directory)
             apk, installer, secret = folder/'app.apk', folder/'app.exe', folder/'key.pem'

@@ -1,7 +1,7 @@
 {
-  "versionCode": 14,
-  "versionName": "4.2.1-beta.4",
-  "channel": "beta",
+  "versionCode": 15,
+  "versionName": "4.2.1",
+  "channel": "stable",
   "shareUrl": "https://cloud.tsinghua.edu.cn/d/5f09cb03dbd149bdb635/",
   "manifestPaths": {
     "stable": "/update-stable.json",
