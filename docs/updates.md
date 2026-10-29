@@ -24,7 +24,7 @@ Release/
 
 两个索引格式相同，包含 Windows 的 `version` / `channel` / `notes` / `platforms` 和 Android 的 RSA `payload` / `signature`。payload 是 Base64 编码的 UTF-8 JSON，包含 schema、channel、versionName、versionCode、notes 与 android 安装包信息；其原始字节由 SHA256withRSA 签名。APK 路径必须为 `<version>/GermanWords-Android-<version>.apk`，并带大小与 SHA-256。Windows 的各架构条目提供下载 URL 与 Tauri 安装包签名，不共用 Android 的安装协议。
 
-「词库与设置 → 接收更新」可选择「正式版」或「测试版（含正式版）」。两者分别读取 `shared/app-config.json` 的 `manifestPaths.stable` / `.beta`，沿用同一只读分享目录。首次使用默认采用安装包配置的 `channel`，之后保存用户选择，覆盖升级不重置；更新偏好不属于学习备份。反馈中的 app.channel 仍表示安装包的构建通道。
+「词库与设置 → 是否接收测试版更新」可选择「否」或「是」：否只接收正式版，是接收测试版和正式版，分别读取 `shared/app-config.json` 的 `manifestPaths.stable` / `.beta`，沿用同一只读分享目录。首次安装或首次升级到支持此询问的版本时弹窗，明确选择后才检查更新；旧版自动保存的通道不算明确选择。确认结果单独保存，此后重启、升级不再询问，仍可在设置中更改。不按安装包类型自动加入测试更新；更新偏好不属于学习备份。反馈中的 app.channel 仍表示安装包的构建通道。
 
 正式入口只发布 `X.Y.Z`；测试入口接收 `X.Y.Z-beta.N` 及后续正式版。发布正式版时生成两份索引，指向同一批安装包，但各自签名载荷的 channel 必须分别是 stable / beta，兼容旧 Android 客户端。若测试入口已有更高版本，维护工具保留它。版本后缀、构建默认通道、索引载荷通道和 GitHub Pre-release 标记须按维护要求配套设置。
 

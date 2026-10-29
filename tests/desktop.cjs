@@ -13,6 +13,10 @@ const assert = require('node:assert/strict');
     assert.equal(await page.evaluate(() => !!window.__TAURI__), true);
     assert.equal(await page.evaluate(() => window.__TAURI__.app.getVersion()), require('../shared/app-config.json').versionName);
     assert.equal(await page.locator('#appVersion').textContent(), ' · ' + require('../shared/app-config.json').versionName);
+    if (await page.locator('#updateChannelDialog').isVisible()) {
+      await page.locator('#declineBetaUpdates').click();
+      await page.waitForFunction(() => !document.getElementById('updateChannel').disabled);
+    }
     const initial = await page.evaluate(() => ({marks:localStorage.getItem(MarkStore.key), theme:localStorage.getItem('german_theme_v1'), rate:Playback.getRate()}));
     try {
       await require('./course-ui.cjs')(page);

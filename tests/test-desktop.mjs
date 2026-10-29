@@ -64,7 +64,7 @@ assert.equal(vm.runInContext("store.marks('E1')[0]",f.context),'restored');
 console.log('PASS: desktop backups retain fallback storage/legacy format, validate courses; native catalogue has no asynchronous index race.');
 
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
-const channels=fixture(true);
+const channels=fixture(true,{saved:[['german_update_channel','beta'],['german_update_channel_confirmed','true']]});
 await settle();
 assert.equal(channels.get('updateChannelSetting').hidden,false);
 assert.equal(channels.calls[0].args.channel,'beta');
@@ -80,11 +80,11 @@ channels.block(true);
 channels.get('updateChannel').value='beta';
 channels.get('updateChannel').onchange();
 assert.equal(channels.get('updateChannel').value,'stable','failed persistence does not silently switch channel');
-const savedChannel=fixture(true,{saved:[['german_update_channel','stable'],['german_update_check_stable',String(Date.now())]]});
+const savedChannel=fixture(true,{saved:[['german_update_channel','stable'],['german_update_channel_confirmed','true'],['german_update_check_stable',String(Date.now())]]});
 await settle();
 assert.equal(savedChannel.get('updateChannel').value,'stable');
 assert.equal(savedChannel.calls.length,0,'a successful check is throttled only for its own channel');
-const prompted=fixture(true,{invoke:async()=>({version:'4.2.1',notes:'test'})});
+const prompted=fixture(true,{saved:[['german_update_channel','beta'],['german_update_channel_confirmed','true']],invoke:async()=>({version:'4.2.1',notes:'test'})});
 await settle();
 assert.equal(prompted.get('updateDialog').open,true);
 prompted.get('updateChannel').value='stable';
@@ -93,3 +93,29 @@ assert.equal(prompted.get('updateDialog').open,false,'switching closes the previ
 await settle();
 assert.equal(prompted.calls.at(-1).args.channel,'stable');
 console.log('PASS: native update channel selection, persistence, per-channel throttling and prompt invalidation.');
+
+for(const existing of [[],[['german_update_channel','beta']]]) {
+  for(const [button,expected] of [['acceptBetaUpdates','beta'],['declineBetaUpdates','stable']]) {
+    const first=fixture(true,{saved:existing});
+    await settle();
+    assert.equal(first.calls.length,0,'no update check before an explicit initial choice');
+    assert.equal(first.get('updateChannelDialog').open,true,'new installs and old implicit defaults both ask once');
+    first.get(button).onclick();
+    await settle();
+    assert.equal(first.get('updateChannelDialog').open,false);
+    assert.equal(first.saved.get('german_update_channel'),expected);
+    assert.equal(first.saved.get('german_update_channel_confirmed'),'true');
+    assert.equal(first.calls[0].args.channel,expected);
+    const restarted=fixture(true,{saved:[...first.saved]});
+    await settle();
+    assert.notEqual(restarted.get('updateChannelDialog').open,true,'explicit choice is not asked again after restart');
+    assert.equal(restarted.get('updateChannel').value,expected);
+  }
+}
+const failedChoice=fixture(true);
+failedChoice.block(true);
+failedChoice.get('acceptBetaUpdates').onclick();
+await settle();
+assert.equal(failedChoice.get('updateChannelDialog').open,true,'failed persistence leaves the question open');
+assert.equal(failedChoice.calls.length,0);
+console.log('PASS: first-use yes/no prompt, migration from implicit defaults, no network before consent, persistence and failed-save retry.');

@@ -1,6 +1,7 @@
 package cn.study.germanwords;
 
 import android.content.SharedPreferences;
+import android.app.AlertDialog;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -14,12 +15,17 @@ import java.security.Signature;
 import java.security.interfaces.RSAPublicKey;
 import android.util.Base64;
 import org.json.JSONObject;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
-/** Exercises saved update ownership and rejection only; never opens an installer. */
+/** Exercises initial preference confirmation, saved update ownership and rejection; never opens an installer. */
 final class UpdateChecks {
     static void run(MainActivity activity) throws Exception {
         SharedPreferences preferences=activity.getSharedPreferences("updates",0);
         if(preferences.contains("pendingRelease"))throw new IOException("Finish or cancel the pending real update before testing");
+        String originalChannel=preferences.getString("channel",null);
+        boolean confirmed=preferences.getBoolean("channelConfirmed",false);
         File file=File.createTempFile("update-", ".apk",activity.getCacheDir());
         UpdateManager first=new UpdateManager(activity), restored=new UpdateManager(activity);
         Method save=UpdateManager.class.getDeclaredMethod("savePending",File.class,JSONObject.class);
@@ -28,6 +34,7 @@ final class UpdateChecks {
         Method verify=UpdateManager.class.getDeclaredMethod("verifyPackage",File.class,JSONObject.class);
         for(Method method:new Method[]{save,pending,clear,verify})method.setAccessible(true);
         try {
+            checkInitialChoice(activity,originalChannel);
             checkReleaseSignatures(first);
             try(FileOutputStream out=new FileOutputStream(file)) { out.write(1); }
             JSONObject release=new JSONObject().put("android",new JSONObject().put("size",1).put("sha256","bad"));
@@ -45,7 +52,41 @@ final class UpdateChecks {
         } finally {
             first.close();restored.close();file.delete();
             preferences.edit().remove("pendingFile").remove("pendingRelease").commit();
+            SharedPreferences.Editor restore=preferences.edit().putString("channel",originalChannel);
+            if(confirmed)restore.putBoolean("channelConfirmed",true);else restore.remove("channelConfirmed");
+            restore.commit();
         }
+    }
+
+    private static void checkInitialChoice(MainActivity activity,String previous) throws Exception {
+        Field managerField=MainActivity.class.getDeclaredField("updates");managerField.setAccessible(true);
+        UpdateManager manager=(UpdateManager)managerField.get(activity);
+        Field dialogField=UpdateManager.class.getDeclaredField("updateDialog");dialogField.setAccessible(true);
+        Field busyField=UpdateManager.class.getDeclaredField("busy");busyField.setAccessible(true);
+        java.util.concurrent.atomic.AtomicBoolean busy=(java.util.concurrent.atomic.AtomicBoolean)busyField.get(manager);
+        for(int i=0;i<80 && busy.get();i++)Thread.sleep(500);
+        if(busy.get())throw new IOException("Updater is still busy before initial-choice test");
+        activity.getSharedPreferences("updates",0).edit().remove("channelConfirmed").commit();
+        CountDownLatch ready=new CountDownLatch(1);
+        AtomicReference<Exception> failure=new AtomicReference<>();
+        activity.runOnUiThread(() -> {
+            try {
+                manager.check(false);
+                AlertDialog dialog=(AlertDialog)dialogField.get(manager);
+                if(dialog==null || !dialog.isShowing())throw new IOException("Initial update question was not shown");
+                dialog.getButton("beta".equals(previous)?AlertDialog.BUTTON_POSITIVE:AlertDialog.BUTTON_NEGATIVE).performClick();
+            } catch(Exception e) { failure.set(e); }
+            finally { ready.countDown(); }
+        });
+        if(!ready.await(10,TimeUnit.SECONDS))throw new IOException("Initial question timeout");
+        if(failure.get()!=null)throw failure.get();
+        // AlertDialog dispatches button callbacks through its Handler after performClick returns.
+        for(int i=0;i<50 && !activity.getSharedPreferences("updates",0).getBoolean("channelConfirmed",false);i++)Thread.sleep(20);
+        if(!activity.getSharedPreferences("updates",0).getBoolean("channelConfirmed",false))throw new IOException("Initial choice not saved");
+        UpdateManager restored=new UpdateManager(activity);
+        try {
+            if(!restored.channel().equals("beta".equals(previous)?"beta":"stable"))throw new IOException("Initial choice not restored");
+        } finally { restored.close(); }
     }
 
     private static void checkReleaseSignatures(UpdateManager manager) throws Exception {

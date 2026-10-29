@@ -37,19 +37,17 @@ final class UpdateManager implements AutoCloseable {
         try(InputStream in=activity.getAssets().open("web/app-config.json")) {
             config=new JSONObject(new String(read(in,65536),StandardCharsets.UTF_8));
         } catch(Exception e) { config=new JSONObject(); }
-        if(!activity.getSharedPreferences("updates",0).contains("channel")) {
-            activity.getSharedPreferences("updates",0).edit().putString("channel",channel()).apply();
-        }
     }
 
     String channel() {
-        String value=activity.getSharedPreferences("updates",0).getString("channel",config.optString("channel","stable"));
+        String value=activity.getSharedPreferences("updates",0).getString("channel","stable");
         return "beta".equals(value)?"beta":"stable";
     }
     synchronized boolean setChannel(String value) {
         if(closed || busy.get() || activity.getSharedPreferences("updates",0).contains("pendingRelease")
                 || !("stable".equals(value) || "beta".equals(value)))return false;
-        if(!activity.getSharedPreferences("updates",0).edit().putString("channel",value).commit())return false;
+        if(!activity.getSharedPreferences("updates",0).edit().putString("channel",value).putBoolean("channelConfirmed",true).commit())return false;
+        ui(() -> activity.web.evaluateJavascript("if(document.getElementById('updateChannel'))document.getElementById('updateChannel').value=Android.getUpdateChannel()",null));
         ui(() -> { if(updateDialog!=null)updateDialog.dismiss(); check(true); });
         return true;
     }
@@ -58,8 +56,20 @@ final class UpdateManager implements AutoCloseable {
         activity.runOnUiThread(() -> { if(!closed && !activity.isFinishing()) action.run(); });
     }
     private void message(String text) { ui(() -> Toast.makeText(activity,text,Toast.LENGTH_LONG).show()); }
+    private void askChannel() {
+        if(updateDialog!=null && updateDialog.isShowing())return;
+        updateDialog=new AlertDialog.Builder(activity).setTitle("是否接收测试版更新？")
+                .setMessage("选择“是”也会接收正式版更新，可随时在设置中更改。")
+                .setNegativeButton("否",(dialog,which) -> chooseChannel("stable"))
+                .setPositiveButton("是",(dialog,which) -> chooseChannel("beta"))
+                .setCancelable(false).show();
+    }
+    private void chooseChannel(String value) {
+        if(!setChannel(value)) { message("无法保存更新设置，请稍后重试"); activity.web.post(() -> ui(this::askChannel)); }
+    }
     synchronized void check(boolean manual) {
         if(activity.getSharedPreferences("updates",0).contains("pendingRelease")) { resumeInstall(); return; }
+        if(!activity.getSharedPreferences("updates",0).getBoolean("channelConfirmed",false)) { ui(this::askChannel); return; }
         if(closed || !busy.compareAndSet(false,true)) return;
         String channel=channel();
         worker.execute(() -> {

@@ -9,16 +9,20 @@ document.getElementById('openFeedback').onclick = () => {
 const Desktop = (function () {
   const native = window.__TAURI__;
   const channelSelect = document.getElementById('updateChannel');
-  let channel = channelSelect.dataset.default;
+  const channelDialog = document.getElementById('updateChannelDialog');
+  let channel = 'stable', channelConfirmed = false;
   try {
     const saved = localStorage.getItem('german_update_channel');
-    if (saved === 'stable' || saved === 'beta') channel = saved;
-    localStorage.setItem('german_update_channel', channel);
+    if (saved === 'stable' || saved === 'beta') {
+      channel = saved;
+      channelConfirmed = localStorage.getItem('german_update_channel_confirmed') === 'true';
+    }
   } catch (_) {}
   channelSelect.value = channel;
   let busy = false;
   async function checkUpdates(manual) {
     if (!native || busy) return;
+    if (!channelConfirmed) { if (!channelDialog.open) channelDialog.showModal(); return; }
     try {
       if (!manual && Date.now() - Number(localStorage.getItem('german_update_check_' + channel) || 0) < 86400000) return;
     } catch (_) {}
@@ -51,15 +55,24 @@ const Desktop = (function () {
     catch (error) { status.textContent = '更新未完成，请检查网络后重试'; }
     finally { busy = false; document.getElementById('checkUpdates').disabled = false; channelSelect.disabled = false; }
   }
-  channelSelect.onchange = () => {
-    const selected = channelSelect.value;
+  function selectChannel(selected) {
     if (busy || !['stable', 'beta'].includes(selected)) { channelSelect.value = channel; return; }
-    try { localStorage.setItem('german_update_channel', selected); }
+    try {
+      localStorage.setItem('german_update_channel', selected);
+      localStorage.setItem('german_update_channel_confirmed', 'true');
+    }
     catch (_) { channelSelect.value = channel; notify('无法保存更新设置，请检查存储空间', 'warn'); return; }
     channel = selected;
+    channelConfirmed = true;
+    channelSelect.value = channel;
+    channelDialog.close();
     document.getElementById('updateDialog').close();
     checkUpdates(true);
-  };
+  }
+  channelSelect.onchange = () => selectChannel(channelSelect.value);
+  document.getElementById('declineBetaUpdates').onclick = () => selectChannel('stable');
+  document.getElementById('acceptBetaUpdates').onclick = () => selectChannel('beta');
+  channelDialog.addEventListener('cancel', event => event.preventDefault());
   async function loadBuiltIn() {
     if (!native) return;
     try {
