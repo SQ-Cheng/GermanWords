@@ -80,3 +80,5 @@ Windows 上的 Chromium 使用本机 Edge，其他系统先执行 `pnpm --dir te
 需要实际上传时，在已安装应用启用测试 CDP 连接后，显式执行 `node tests/feedback-live.cjs http://127.0.0.1:PORT android --send-test-report`（Windows 改为 `windows`）。每次只提交一份标明“自动化验证、可删除”的 JSON；不会随普通测试自动执行。Android 根据调试目标的可见状态选取前台 WebView，避免误操作后台 Activity。
 
 4.2.1 合并前检查补充：原生 Windows 回归必须实际点击反馈入口，覆盖 CSP 下的事件绑定；发布器拒绝调试 APK 与大于 64 KiB 的更新索引。版本显示从公共配置注入生成页面。
+
+Windows 显示名称：先构建 NSIS 包，再运行 `python tests/test_windows_app_name.py MAKENSIS NSIS_SUPPORT_DIRECTORY`（例如 NSIS 安装目录的 `makensis.exe` 和 Cargo target 的 `debug/nsis/x64`）。该原生测试把正式钩子的桌面/开始菜单路径重定向到仓库 `tmp/`，使用独立、运行后删除的 HKCU 测试键；实际执行快捷方式改名、安装完成页、取消、更新保留及正常卸载逻辑，并检查不会改动指向其他程序的快捷方式。它不安装主程序、不修改现有应用注册信息，临时测试程序不进入客户端。

@@ -401,7 +401,7 @@ function updateNav() {
 }
 
 function updateUI() {
-  document.getElementById('lessonTitle').textContent = currentBookNames.length > 1 ? '混合学习' : fileMap[currentFileName] ? StudyLibrary.title(fileMap[currentFileName]) : '德语单词';
+  document.getElementById('lessonTitle').textContent = currentBookNames.length > 1 ? '混合学习' : fileMap[currentFileName] ? StudyLibrary.title(fileMap[currentFileName]) : '德语单词助手';
   document.getElementById('courseName').textContent = currentBookNames.length && currentBookNames.every(name => !fileMap[name].course) ? '我的词表' : library.current().name;
   document.getElementById('lessonCount').textContent = currentFileWords.length ? currentFileWords.length + ' 词' : '离线学习';
   const markedCount = currentFileWords.filter((w) => w.marked).length;

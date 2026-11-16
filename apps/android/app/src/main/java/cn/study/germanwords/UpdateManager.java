@@ -198,7 +198,7 @@ final class UpdateManager implements AutoCloseable {
         if(Build.VERSION.SDK_INT>=26 && !activity.getPackageManager().canRequestPackageInstalls()) {
             if(permissionPrompt)return;
             permissionPrompt=true;
-            new AlertDialog.Builder(activity).setTitle("允许安装更新").setMessage("请在系统设置中允许德语单词安装应用，返回后由系统确认升级。")
+            new AlertDialog.Builder(activity).setTitle("允许安装更新").setMessage("请在系统设置中允许"+activity.getString(R.string.app_name)+"安装应用，返回后由系统确认升级。")
                     .setNegativeButton("取消",(d,w) -> clearPending())
                     .setOnCancelListener(d -> clearPending())
                     .setPositiveButton("去设置",(d,w) -> activity.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,Uri.parse("package:"+activity.getPackageName()))))

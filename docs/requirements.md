@@ -4,7 +4,7 @@
 
 ## 必须保持的兼容性
 
-- Android 包名与 Windows identifier 保持 `cn.study.germanwords`。普通升级不得改变用户数据目录、清除星标或导入文件。
+- Android 包名与 Windows identifier 保持 `cn.study.germanwords`。Windows `productName=GermanWords` 同时用于 NSIS 安装路径及卸载/升级注册键，显示名称通过窗口配置和 `app-name.nsh` 调整，不以重命名该技术标识代替。普通升级不得改变用户数据目录、清除星标或导入文件。
 - Android `versionCode` 在全部通道间统一递增，必须高于所有已分发版本；两端升级还要求版本名按语义版本递增。移除 `-beta` 后缀不代替递增 Android versionCode。切换通道只影响接收范围，不降级安装包。
 - 发布版本仅使用 `X.Y.Z`（配置 channel=stable，GitHub 正式 Release）或 `X.Y.Z-beta.N`（channel=beta，GitHub Pre-release）。构建 channel 决定产物类型，不替用户决定是否接收测试版：首次安装或升级到支持询问的版本时，明确询问一次并保存确认标记；旧的自动默认值也需询问，后续升级保留选择、不重复询问。`manifestPaths` 必须保留正式入口 `/update-stable.json` 和历史测试入口 `/update-beta.json`；两者都通过既有只读分享目录分发，不以 GitHub Release 代替应用内更新。
 - 公共资源只维护在 `shared/`。德语（1）的旧词表键和德语（2）的课程前缀不得随目录整理随意变化；用户导入词表全局可用，切换课程不改变其身份、星标或存储生命周期。

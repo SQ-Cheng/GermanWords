@@ -12,7 +12,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "德语单词",
+        "title": "德语单词助手",
         "width": 1120,
         "height": 800,
         "minWidth": 480,
@@ -40,7 +40,8 @@
           "SimpChinese",
           "English"
         ],
-        "displayLanguageSelector": false
+        "displayLanguageSelector": false,
+        "installerHooks": "app-name.nsh"
       },
       "webviewInstallMode": {
         "type": "downloadBootstrapper"

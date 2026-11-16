@@ -17,7 +17,7 @@ def prepare(platform):
     config = json.loads((ROOT / 'shared/app-config.json').read_text(encoding='utf-8'))
     client = ROOT / 'apps/web'
     html = (client / 'index.html').read_text(encoding='utf-8')
-    html = html.replace('<title>德语单词</title>', '<title>德语单词 ' + config['versionName'] + '</title>')
+    html = html.replace('<title>德语单词助手</title>', '<title>德语单词助手 ' + config['versionName'] + '</title>')
     html = html.replace('<span id="appVersion"></span>', '<span id="appVersion"> · ' + config['versionName'] + '</span>')
     html = html.replace('<!-- built-in library -->', '<script src="library-data.js"></script>')
     if platform == 'windows':
