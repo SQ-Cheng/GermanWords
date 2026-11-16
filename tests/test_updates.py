@@ -22,6 +22,13 @@ class ReleaseInputs(unittest.TestCase):
     def setUp(self):
         self.config = json.loads((ROOT / 'shared/app-config.json').read_text(encoding='utf-8'))
 
+    def test_read_url_identifies_the_maintenance_client(self):
+        import io
+        with patch.object(publisher.urllib.request, 'urlopen', return_value=io.BytesIO(b'index')) as open_url:
+            self.assertEqual(publisher.read_url('https://cloud.tsinghua.edu.cn/test'), b'index')
+        request = open_url.call_args.args[0]
+        self.assertEqual(request.get_header('User-agent'), 'GermanWords-maintenance')
+
     def test_apk_version_signature_and_embedded_config(self):
         certificate = (ROOT / 'apps/android/release-certificate.sha256').read_text().strip()
         valid = f"package: name='cn.study.germanwords' versionCode='{self.config['versionCode']}' versionName='{self.config['versionName']}'"
@@ -128,6 +135,7 @@ class ReleaseInputs(unittest.TestCase):
                 if '/dirents/' in url: return b'{"dirent_list":[]}'
                 return b'index' if 'update-beta.json' in url else b'apk'
             def post(request, **kwargs):
+                self.assertEqual(request.get_header('User-agent'), 'GermanWords-maintenance')
                 sent.append(request.data)
                 name = 'update-beta.json' if b'filename="update-beta.json"' in request.data else 'package.apk'
                 return io.BytesIO(json.dumps([dict(name=name)]).encode())

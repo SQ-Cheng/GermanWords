@@ -23,6 +23,7 @@ with tempfile.TemporaryDirectory(prefix='windows-name-', dir=ROOT / 'tmp') as di
     assert folder.is_relative_to((ROOT / 'tmp').resolve())
     # Redirect only shell-folder roots; execute the production hook logic verbatim.
     hook = (ROOT / 'apps/windows/src-tauri/app-name.nsh').read_text(encoding='utf-8')
+    assert 'NSIS_HOOK_PREUNINSTALL' not in hook, 'Cancelled uninstall must preserve shortcuts'
     hook = hook.replace('$SMPROGRAMS', '$INSTDIR\\start').replace('$DESKTOP', '$INSTDIR\\desktop')
     (folder / 'app-name.nsh').write_text(hook, encoding='utf-8-sig')
     for name in ['germanwords.exe', 'foreign.exe']:
@@ -72,14 +73,26 @@ Section
   Pop $R1
   StrCmp $R1 1 +2 0
     Goto failed
-  ; Update uninstall mode preserves shortcuts; normal uninstall removes ours only.
-  StrCpy $UpdateMode 1
-  !insertmacro NSIS_HOOK_PREUNINSTALL
+  ; A localized filename owned by another application must not be overwritten.
+  CreateShortcut "$INSTDIR\desktop\GermanWords.lnk" "$INSTDIR\germanwords.exe"
+  CreateShortcut "$INSTDIR\desktop\${APP_DISPLAY_NAME}.lnk" "$INSTDIR\foreign.exe"
+  Call RenameAppShortcuts
+  !insertmacro IsShortcutTarget "$INSTDIR\desktop\${APP_DISPLAY_NAME}.lnk" "$INSTDIR\foreign.exe"
+  Pop $R1
+  StrCmp $R1 1 +2 0
+    Goto failed
+  IfFileExists "$INSTDIR\desktop\GermanWords.lnk" +2 0
+    Goto failed
+  ; Run a real uninstaller: cancellation/update preserve links; success cleans ours.
+  WriteUninstaller "$INSTDIR\uninstall.exe"
+  ExecWait '"$INSTDIR\uninstall.exe" /S /CANCEL _?=$INSTDIR'
+  IfFileExists "$INSTDIR\start\${APP_DISPLAY_NAME}.lnk" +2 0
+    Goto failed
+  ExecWait '"$INSTDIR\uninstall.exe" /S /UPDATE _?=$INSTDIR'
   IfFileExists "$INSTDIR\start\${APP_DISPLAY_NAME}.lnk" +2 0
     Goto failed
   CreateShortcut "$INSTDIR\desktop\${APP_DISPLAY_NAME}.lnk" "$INSTDIR\foreign.exe"
-  StrCpy $UpdateMode 0
-  !insertmacro NSIS_HOOK_PREUNINSTALL
+  ExecWait '"$INSTDIR\uninstall.exe" /S _?=$INSTDIR'
   IfFileExists "$INSTDIR\start\${APP_DISPLAY_NAME}.lnk" failed 0
   !insertmacro IsShortcutTarget "$INSTDIR\desktop\${APP_DISPLAY_NAME}.lnk" "$INSTDIR\foreign.exe"
   Pop $R1
@@ -95,6 +108,21 @@ Section
     FileClose $R1
   done:
     DeleteRegKey SHCTX "${UNINSTKEY}"
+SectionEnd
+
+Section Uninstall
+  ${GetParameters} $R2
+  ClearErrors
+  ${GetOptions} $R2 "/CANCEL" $R3
+  ${IfNot} ${Errors}
+    Abort
+  ${EndIf}
+  ClearErrors
+  ${GetOptions} $R2 "/UPDATE" $UpdateMode
+  ${IfNot} ${Errors}
+    StrCpy $UpdateMode 1
+  ${EndIf}
+  !insertmacro NSIS_HOOK_POSTUNINSTALL
 SectionEnd
 '''.replace('@SUPPORT@', str(support.resolve())).replace('@FOLDER@', str(folder)).replace('@KEY@', key)
     source = folder / 'test.nsi'

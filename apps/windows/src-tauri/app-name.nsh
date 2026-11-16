@@ -36,17 +36,19 @@ Function .onGUIEnd
   ${EndIf}
 FunctionEnd
 
-!macro NSIS_HOOK_PREUNINSTALL
+!macro NSIS_HOOK_POSTUNINSTALL
   ; Updater uninstall mode preserves existing shortcuts, as does Tauri itself.
   ${If} $UpdateMode != 1
     !insertmacro IsShortcutTarget "$SMPROGRAMS\${APP_DISPLAY_NAME}.lnk" "$INSTDIR\germanwords.exe"
     Pop $R0
     ${If} $R0 = 1
+      !insertmacro UnpinShortcut "$SMPROGRAMS\${APP_DISPLAY_NAME}.lnk"
       Delete "$SMPROGRAMS\${APP_DISPLAY_NAME}.lnk"
     ${EndIf}
     !insertmacro IsShortcutTarget "$DESKTOP\${APP_DISPLAY_NAME}.lnk" "$INSTDIR\germanwords.exe"
     Pop $R0
     ${If} $R0 = 1
+      !insertmacro UnpinShortcut "$DESKTOP\${APP_DISPLAY_NAME}.lnk"
       Delete "$DESKTOP\${APP_DISPLAY_NAME}.lnk"
     ${EndIf}
   ${EndIf}

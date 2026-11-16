@@ -86,7 +86,8 @@ def verify_installer(installer, arch, config):
 
 
 def read_url(url):
-    with urllib.request.urlopen(url, timeout=60) as response:
+    request = urllib.request.Request(url, headers={'User-Agent': 'GermanWords-maintenance'})
+    with urllib.request.urlopen(request, timeout=60) as response:
         return response.read()
 
 
@@ -233,7 +234,8 @@ def upload_files(files, manifests, upload_url, config):
         body = b''.join((f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n').encode() for name, value in fields.items())
         body += (f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{file.name}"\r\nContent-Type: application/octet-stream\r\n\r\n').encode() + data + f'\r\n--{boundary}--\r\n'.encode()
         request = urllib.request.Request(link + '?ret-json=1', data=body,
-            headers={'Content-Type': 'multipart/form-data; boundary=' + boundary})
+            headers={'Content-Type': 'multipart/form-data; boundary=' + boundary,
+                     'User-Agent': 'GermanWords-maintenance'})
         with urllib.request.urlopen(request, timeout=120) as response:
             result = json.load(response)
         if len(result) != 1 or result[0]['name'] != file.name:
